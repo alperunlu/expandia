@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Empire Clash</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+</head>
+<body>
+  <script>
+    const config = {
+      type: Phaser.AUTO,
+      width: 800,
+      height: 800,
+      backgroundColor: '#222',
+      scene: {
+        create: create
+      }
+    };
+
+    const game = new Phaser.Game(config);
+
+    const CELL_SIZE = 20;
+    const ROWS = 40;
+    const COLS = 40;
+    let graphics;
+    let grid = []; // 0=boş, 1=player, 2=AI
+
+    let playerCells = [];
+    let aiCells = [];
+
+    // Renkler
+    const PLAYER_COLOR = 0x00aaff; // mavi
+    const AI_COLOR = 0xff4444;     // kırmızı
+
+    // Taş-kağıt-makas kuralları
+    const beats = {
+      E: "M", // Ekonomi askeriyeyi yener
+      M: "C", // Askeriye kültürü yener
+      C: "E"  // Kültür ekonomiyi yener
+    };
+
+    function create() {
+      graphics = this.add.graphics();
+      drawGrid();
+
+      // Başlangıç noktaları
+      let pStart = {r: Math.floor(ROWS/2), c: Math.floor(COLS/4)};
+      let aStart = {r: Math.floor(ROWS/2), c: Math.floor(3*COLS/4)};
+      claimCell(pStart.r, pStart.c, PLAYER_COLOR, 1);
+      claimCell(aStart.r, aStart.c, AI_COLOR, 2);
+      playerCells.push(pStart);
+      aiCells.push(aStart);
+
+      // Klavye inputları
+      this.input.keyboard.on('keydown-E', () => playRound("E"));
+      this.input.keyboard.on('keydown-M', () => playRound("M"));
+      this.input.keyboard.on('keydown-C', () => playRound("C"));
+    }
+
+    function drawGrid() {
+      graphics.lineStyle(1, 0xffffff, 0.2);
+      for (let i = 0; i < ROWS; i++) {
+        grid[i] = [];
+        for (let j = 0; j < COLS; j++) {
+          graphics.strokeRect(j*CELL_SIZE, i*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          grid[i][j] = 0;
+        }
+      }
+    }
+
+    function claimCell(row, col, color, owner) {
+      grid[row][col] = owner;
+      graphics.fillStyle(color, 1);
+      graphics.fillRect(col*CELL_SIZE, row*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      graphics.lineStyle(1, 0xffffff, 0.2);
+      graphics.strokeRect(col*CELL_SIZE, row*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    }
+
+    function expand(cells, color, owner, choice, enemyChoice) {
+      let candidates = [];
+      for (let cell of cells) {
+        let neighbors = [
+          {r: cell.r-1, c: cell.c},
+          {r: cell.r+1, c: cell.c},
+          {r: cell.r, c: cell.c-1},
+          {r: cell.r, c: cell.c+1}
+        ];
+        for (let n of neighbors) {
+          if (n.r>=0 && n.r<ROWS && n.c>=0 && n.c<COLS) {
+            let target = grid[n.r][n.c];
+            if (target === 0) {
+              // Boş kare → her zaman alabilir
+              candidates.push({pos: n, takeover: false});
+            } else if (target !== owner) {
+              // Düşmana ait kare → savaş olacak
+              candidates.push({pos: n, takeover: true});
+            }
+          }
+        }
+      }
+      if (candidates.length > 0) {
+        let choiceCell = Phaser.Utils.Array.GetRandom(candidates);
+
+        if (!choiceCell.takeover) {
+          // Boş kareyi al
+          claimCell(choiceCell.pos.r, choiceCell.pos.c, color, owner);
+          cells.push(choiceCell.pos);
+        } else {
+          // Düşmanın hücresi → taş-kağıt-makas ile çöz
+          if (beats[choice] === enemyChoice) {
+            // Bu taraf kazanır → düşmanın hücresini al
+            claimCell(choiceCell.pos.r, choiceCell.pos.c, color, owner);
+            cells.push(choiceCell.pos);
+            console.log(owner === 1 ? "Sen düşman toprağını aldın!" : "AI senin toprağını aldı!");
+          } else if (beats[enemyChoice] === choice) {
+            // Kaybeder → hiçbir şey olmaz
+          } else {
+            // Berabere → değişiklik yok
+          }
+        }
+
+        return choiceCell.pos;
+      }
+      return null;
+    }
+
+    function playRound(playerChoice) {
+      // AI rastgele seçim yapar
+      const options = ["E","M","C"];
+      let aiChoice = Phaser.Utils.Array.GetRandom(options);
+
+      console.log("Sen:", playerChoice, "| AI:", aiChoice);
+
+      // Oyuncu genişler
+      expand(playerCells, PLAYER_COLOR, 1, playerChoice, aiChoice);
+      // AI genişler
+      expand(aiCells, AI_COLOR, 2, aiChoice, playerChoice);
+    }
+  </script>
+</body>
+</html>
