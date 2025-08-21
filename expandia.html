@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Empire Clash - Strategy Game</title>
+  <title>Empire Clash - Enhanced Strategy Game</title>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
   <style>
     body {
@@ -35,11 +35,6 @@
       border-radius: 20px;
       margin: 0 5px;
     }
-    .resource-icon {
-      width: 24px;
-      height: 24px;
-      margin-right: 8px;
-    }
     #controls {
       display: flex;
       gap: 10px;
@@ -51,6 +46,8 @@
       font-weight: bold;
       cursor: pointer;
       transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
     }
     .choice-btn:hover {
       transform: translateY(-3px);
@@ -65,6 +62,7 @@
     #economyBtn { background: #4cd964; color: white; }
     #militaryBtn { background: #ff3b30; color: white; }
     #cultureBtn { background: #9c27b0; color: white; }
+    #specialBtn { background: #ff9500; color: white; }
     #messageBox {
       position: absolute;
       top: 20px;
@@ -102,6 +100,27 @@
     #restartBtn:hover {
       background: #0062cc;
     }
+    .cooldown-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      background: rgba(0, 0, 0, 0.5);
+      width: 100%;
+      transition: height 0.3s;
+    }
+    #specialCooldown {
+      position: absolute;
+      top: -25px;
+      width: 100%;
+      text-align: center;
+      font-size: 12px;
+    }
+    #difficultySelect {
+      padding: 5px 10px;
+      border-radius: 5px;
+      border: none;
+      margin-left: 10px;
+    }
   </style>
 </head>
 <body>
@@ -117,11 +136,23 @@
         <div class="resource">
           <span>🎨 Culture: <span id="cultureValue">1</span></span>
         </div>
+        <div class="resource">
+          <span>🎯 Special: <span id="specialValue">0</span>/5</span>
+        </div>
       </div>
       <div id="controls">
-        <button id="economyBtn" class="choice-btn">Economy (E)</button>
-        <button id="militaryBtn" class="choice-btn">Military (M)</button>
-        <button id="cultureBtn" class="choice-btn">Culture (C)</button>
+        <button id="economyBtn" class="choice-btn">Economy (E)<div class="cooldown-overlay" id="economyCooldown"></div></button>
+        <button id="militaryBtn" class="choice-btn">Military (M)<div class="cooldown-overlay" id="militaryCooldown"></div></button>
+        <button id="cultureBtn" class="choice-btn">Culture (C)<div class="cooldown-overlay" id="cultureCooldown"></div></button>
+        <button id="specialBtn" class="choice-btn">Special Ability (S)
+          <div class="cooldown-overlay" id="specialCooldownOverlay"></div>
+          <div id="specialCooldown"></div>
+        </button>
+        <select id="difficultySelect">
+          <option value="easy">Easy</option>
+          <option value="normal" selected>Normal</option>
+          <option value="hard">Hard</option>
+        </select>
       </div>
     </div>
     <div id="phaser-game"></div>
@@ -133,6 +164,7 @@
   </div>
 
   <script>
+    // Game configuration
     const config = {
       type: Phaser.AUTO,
       width: 800,
@@ -146,11 +178,15 @@
       }
     };
 
+    // Initialize the game
     const game = new Phaser.Game(config);
+    
+    // Game constants
     const CELL_SIZE = 80;
     const ROWS = 10;
     const COLS = 10;
     
+    // Game state variables
     let grid = [];
     let playerCells = [];
     let aiCells = [];
@@ -159,7 +195,8 @@
     let playerResources = {
       economy: 1,
       military: 1,
-      culture: 1
+      culture: 1,
+      special: 0
     };
     let aiResources = {
       economy: 1,
@@ -170,9 +207,15 @@
     let lastPlayerActionTime = 0;
     let playerActionCooldown = 300; // milliseconds
     let lastAIActionTime = 0;
-    let aiActionCooldown = 400; // AI acts every second
+    let aiActionCooldown = 400; // milliseconds
     let gameActive = true;
     let gameEnded = false;
+    let specialAbilityCooldown = 0;
+    let difficulty = "normal";
+    
+    // AI special ability variables
+    let aiSpecialCharge = 0;
+    let aiSpecialCooldown = 0;
 
     // Rock-paper-scissors rules
     const beats = {
@@ -181,45 +224,72 @@
       C: "E"  // Culture beats Economy
     };
 
+    // Preload assets
     function preload() {
-      // Simple colored rectangles for textures
+      // Load assets for enhanced visuals
     }
 
+    // Initialize the game
     function create() {
-      sceneContext = this; // Save scene context
+      sceneContext = this;
       graphics = this.add.graphics();
       drawGrid();
 
-      // Starting positions
+      // Starting positions for player and AI
       let pStart = {r: Math.floor(ROWS/2), c: Math.floor(COLS/4)};
       let aStart = {r: Math.floor(ROWS/2), c: Math.floor(3*COLS/4)};
-      claimCell(pStart.r, pStart.c, 0x4cd964, 1, "E"); // Player start
-      claimCell(aStart.r, aStart.c, 0xff3b30, 2, "M"); // AI start
+      claimCell(pStart.r, pStart.c, 0x4cd964, 1, "E");
+      claimCell(aStart.r, aStart.c, 0xff3b30, 2, "M");
       playerCells.push({...pStart, type: "E"});
       aiCells.push({...aStart, type: "M"});
 
       // UI update
       updateUI();
       
-      // Keyboard inputs
+      // Input handlers
       this.input.keyboard.on('keydown-E', () => tryPlayerAction("E"));
       this.input.keyboard.on('keydown-M', () => tryPlayerAction("M"));
       this.input.keyboard.on('keydown-C', () => tryPlayerAction("C"));
+      this.input.keyboard.on('keydown-S', () => useSpecialAbility());
       
       // Button events
       document.getElementById('economyBtn').addEventListener('click', () => tryPlayerAction("E"));
       document.getElementById('militaryBtn').addEventListener('click', () => tryPlayerAction("M"));
       document.getElementById('cultureBtn').addEventListener('click', () => tryPlayerAction("C"));
+      document.getElementById('specialBtn').addEventListener('click', () => useSpecialAbility());
+      document.getElementById('difficultySelect').addEventListener('change', (e) => {
+        difficulty = e.target.value;
+        updateAIDifficulty();
+      });
       
       // Restart button
       document.getElementById('restartBtn').addEventListener('click', () => location.reload());
       
       // Game instructions
-      showMessage("Welcome to Empire Clash! Use E, M, C keys or buttons to expand your empire.");
+      showMessage("Welcome to Empire Clash! Use E, M, C keys or buttons. Press S for special ability!");
     }
 
+    // Main game loop
     function update(time, delta) {
       if (!gameActive) return;
+      
+      // Update cooldown indicators
+      updateCooldownIndicators();
+      
+      // Update special ability cooldown
+      if (specialAbilityCooldown > 0) {
+        specialAbilityCooldown -= delta;
+        if (specialAbilityCooldown < 0) specialAbilityCooldown = 0;
+        document.getElementById('specialCooldown').textContent = 
+          `Cooldown: ${Math.ceil(specialAbilityCooldown/1000)}s`;
+        document.getElementById('specialCooldownOverlay').style.height = 
+          `${(specialAbilityCooldown/10000) * 100}%`;
+      }
+      
+      // Update AI special ability cooldown
+      if (aiSpecialCooldown > 0) {
+        aiSpecialCooldown -= delta;
+      }
       
       // AI acts independently at regular intervals
       const now = Date.now();
@@ -232,6 +302,7 @@
       checkGameState();
     }
 
+    // Draw the game grid
     function drawGrid() {
       graphics.lineStyle(1, 0xffffff, 0.1);
       for (let i = 0; i < ROWS; i++) {
@@ -243,15 +314,16 @@
       }
     }
 
+    // Claim a cell for a player or AI
     function claimCell(row, col, color, owner, type) {
       grid[row][col] = {owner, type};
       
-      // Draw cell
+      // Draw cell with gradient for visual appeal
       graphics.fillStyle(color, 1);
       graphics.fillRect(col*CELL_SIZE, row*CELL_SIZE, CELL_SIZE, CELL_SIZE);
       
       // Cell border
-      graphics.lineStyle(1, 0xffffff, 0.3);
+      graphics.lineStyle(2, 0xffffff, 0.5);
       graphics.strokeRect(col*CELL_SIZE, row*CELL_SIZE, CELL_SIZE, CELL_SIZE);
       
       // Icon for cell type (E, M, C)
@@ -268,27 +340,47 @@
         const text = sceneContext.add.text(col*CELL_SIZE + CELL_SIZE/2, row*CELL_SIZE + CELL_SIZE/2, type, {
           fontSize: '24px',
           color: '#ffffff',
-          fontStyle: 'bold'
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 4
         });
         text.setOrigin(0.5, 0.5);
         selectionTexts.push(text);
       }
     }
 
+    // Expand territory for a player or AI
     function expand(cells, color, owner, choice, isPlayer) {
       let candidates = [];
       const resources = isPlayer ? playerResources : aiResources;
       
       // Increase the resource level for the chosen type
       resources[getResourceType(choice)] += 1;
+      
+      // Gain special points for player
+      if (isPlayer) {
+        playerResources.special += 1;
+        if (playerResources.special > 5) playerResources.special = 5;
+      } else {
+        // Gain special points for AI
+        aiSpecialCharge += 1;
+        if (aiSpecialCharge > 5) aiSpecialCharge = 5;
+      }
+      
       updateUI();
       
+      // Find all possible expansion candidates
       for (let cell of cells) {
         let neighbors = [
           {r: cell.r-1, c: cell.c},
           {r: cell.r+1, c: cell.c},
           {r: cell.r, c: cell.c-1},
-          {r: cell.r, c: cell.c+1}
+          {r: cell.r, c: cell.c+1},
+          // Diagonal moves for more options
+          {r: cell.r-1, c: cell.c-1},
+          {r: cell.r-1, c: cell.c+1},
+          {r: cell.r+1, c: cell.c-1},
+          {r: cell.r+1, c: cell.c+1}
         ];
         
         for (let n of neighbors) {
@@ -314,6 +406,9 @@
           claimCell(selectedCell.pos.r, selectedCell.pos.c, color, owner, choice);
           cells.push({...selectedCell.pos, type: choice});
           
+          // Visual effect for expansion
+          createExpansionEffect(selectedCell.pos.c, selectedCell.pos.r, color);
+          
           return {pos: selectedCell.pos, won: true, message: "Territory gained!"};
         } else {
           // Enemy cell → resolve with rock-paper-scissors and resource comparison
@@ -326,8 +421,8 @@
           // Check if attacker wins by type advantage
           const hasTypeAdvantage = beats[choice] === selectedCell.defenderType;
           
-          // Check if attacker wins by resource advantage (at least 2x defender's power)
-          const hasResourceAdvantage = attackerPower >= defenderPower * 2;
+          // Check if attacker wins by resource advantage
+          const hasResourceAdvantage = attackerPower > defenderPower;
           
           if (hasTypeAdvantage || hasResourceAdvantage) {
             // Attacker wins → take enemy's cell
@@ -342,20 +437,50 @@
             
             cells.push({...selectedCell.pos, type: choice});
             
-            let winReason = hasTypeAdvantage ? "type advantage" : "overwhelming force";
+            // Visual effect for battle win
+            createBattleEffect(selectedCell.pos.c, selectedCell.pos.r, color);
+            
+            let winReason = hasTypeAdvantage ? "type advantage" : "superior resources";
             return {pos: selectedCell.pos, won: true, message: `Enemy territory captured (${winReason})!`};
-          } else if (beats[selectedCell.defenderType] === choice) {
-            // Lose → nothing happens
-            return {pos: selectedCell.pos, won: false, message: "Attack failed!"};
           } else {
-            // Tie → no change
-            return {pos: selectedCell.pos, won: false, message: "Battle ended in a draw!"};
+            // Lose → nothing happens
+            createBattleEffect(selectedCell.pos.c, selectedCell.pos.r, 0x888888, false);
+            return {pos: selectedCell.pos, won: false, message: "Attack failed!"};
           }
         }
       }
       return null;
     }
 
+    // Create visual effect for expansion
+    function createExpansionEffect(x, y, color) {
+      const effect = sceneContext.add.graphics();
+      effect.fillStyle(color, 0.5);
+      effect.fillRect(x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      
+      sceneContext.tweens.add({
+        targets: effect,
+        alpha: 0,
+        duration: 500,
+        onComplete: () => effect.destroy()
+      });
+    }
+
+    // Create visual effect for battle
+    function createBattleEffect(x, y, color, success = true) {
+      const effect = sceneContext.add.graphics();
+      effect.lineStyle(4, color, 1);
+      effect.strokeRect(x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      
+      sceneContext.tweens.add({
+        targets: effect,
+        alpha: 0,
+        duration: 700,
+        onComplete: () => effect.destroy()
+      });
+    }
+
+    // Convert choice letter to resource type
     function getResourceType(choice) {
       switch(choice) {
         case "E": return "economy";
@@ -364,6 +489,7 @@
       }
     }
 
+    // Handle player action
     function tryPlayerAction(playerChoice) {
       if (!gameActive) return;
       
@@ -382,44 +508,206 @@
       }
     }
 
+    // Use player's special ability
+    function useSpecialAbility() {
+      if (!gameActive || playerResources.special < 5 || specialAbilityCooldown > 0) return;
+      
+      playerResources.special = 0;
+      specialAbilityCooldown = 10000; // 10 seconds cooldown
+      updateUI();
+      
+      // Special ability: Convert only adjacent enemy cells
+      let converted = 0;
+      
+      // Find all adjacent enemy cells
+      let adjacentEnemyCells = [];
+      for (let cell of playerCells) {
+        let neighbors = [
+          {r: cell.r-1, c: cell.c},
+          {r: cell.r+1, c: cell.c},
+          {r: cell.r, c: cell.c-1},
+          {r: cell.r, c: cell.c+1}
+        ];
+        
+        for (let n of neighbors) {
+          if (n.r>=0 && n.r<ROWS && n.c>=0 && n.c<COLS) {
+            let target = grid[n.r][n.c];
+            if (target.owner === 2) { // Enemy cell
+              // Check if this cell was already added
+              const alreadyAdded = adjacentEnemyCells.some(c => c.r === n.r && c.c === n.c);
+              if (!alreadyAdded) {
+                adjacentEnemyCells.push({r: n.r, c: n.c, type: target.type});
+              }
+            }
+          }
+        }
+      }
+      
+      // Convert these cells
+      for (let enemyCell of adjacentEnemyCells) {
+        claimCell(enemyCell.r, enemyCell.c, 0x4cd964, 1, "S"); // Convert to player
+        playerCells.push({r: enemyCell.r, c: enemyCell.c, type: "S"});
+        aiCells = aiCells.filter(c => c.r !== enemyCell.r || c.c !== enemyCell.c);
+        converted++;
+        
+        // Special effect for conversion
+        createExpansionEffect(enemyCell.c, enemyCell.r, 0x00ff00);
+      }
+      
+      if (converted > 0) {
+        showMessage(`Special ability converted ${converted} adjacent enemy cells!`);
+      } else {
+        showMessage("Special ability used but no adjacent enemy cells found!");
+        // Don't waste special ability if no targets
+        playerResources.special = 5;
+        specialAbilityCooldown = 0;
+      }
+      
+      updateUI();
+    }
+
+    // Handle AI action
     function tryAIAction() {
       if (!gameActive) return;
       
-      // AI makes a choice based on its resources
+      // AI makes a choice based on its resources and strategy
       let aiChoice = calculateAIChoice();
       
       // AI expands
       const aiResult = expand(aiCells, 0xff3b30, 2, aiChoice, false);
+      
+      // AI special ability chance (based on difficulty)
+      if (aiSpecialCharge === 5 && aiSpecialCooldown <= 0) {
+        const useSpecialChance = difficulty === "easy" ? 0.1 : 
+                                difficulty === "normal" ? 0.3 : 0.5;
+                                
+        if (Math.random() < useSpecialChance) {
+          useAISpecialAbility();
+        }
+      }
       
       if (aiResult) {
         highlightChoice(aiChoice, false);
       }
     }
 
-    function calculateAIChoice() {
-      // Simple AI strategy - focuses on the resource with the highest current value
-      const options = ["E", "M", "C"];
+    // Use AI's special ability
+    function useAISpecialAbility() {
+      aiSpecialCharge = 0;
+      aiSpecialCooldown = 10000; // 10 seconds cooldown
       
-      // Find which resource AI has the most of
-      let maxResource = "economy";
-      if (aiResources.military > aiResources[maxResource]) maxResource = "military";
-      if (aiResources.culture > aiResources[maxResource]) maxResource = "culture";
+      // AI special ability: Convert only adjacent player cells
+      let converted = 0;
       
-      // Convert to choice letter
-      switch(maxResource) {
-        case "economy": return "E";
-        case "military": return "M";
-        case "culture": return "C";
+      // Find all adjacent player cells
+      let adjacentPlayerCells = [];
+      for (let cell of aiCells) {
+        let neighbors = [
+          {r: cell.r-1, c: cell.c},
+          {r: cell.r+1, c: cell.c},
+          {r: cell.r, c: cell.c-1},
+          {r: cell.r, c: cell.c+1}
+        ];
+        
+        for (let n of neighbors) {
+          if (n.r>=0 && n.r<ROWS && n.c>=0 && n.c<COLS) {
+            let target = grid[n.r][n.c];
+            if (target.owner === 1) { // Player cell
+              // Check if this cell was already added
+              const alreadyAdded = adjacentPlayerCells.some(c => c.r === n.r && c.c === n.c);
+              if (!alreadyAdded) {
+                adjacentPlayerCells.push({r: n.r, c: n.c, type: target.type});
+              }
+            }
+          }
+        }
+      }
+      
+      // Convert these cells
+      for (let playerCell of adjacentPlayerCells) {
+        claimCell(playerCell.r, playerCell.c, 0xff3b30, 2, "S"); // Convert to AI
+        aiCells.push({r: playerCell.r, c: playerCell.c, type: "S"});
+        playerCells = playerCells.filter(c => c.r !== playerCell.r || c.c !== playerCell.c);
+        converted++;
+        
+        // Special effect for conversion
+        createExpansionEffect(playerCell.c, playerCell.r, 0xff0000);
+      }
+      
+      if (converted > 0) {
+        showMessage(`AI used special ability and converted ${converted} of your cells!`);
       }
     }
 
+    // Calculate AI's next move based on difficulty
+    function calculateAIChoice() {
+      let choice;
+      
+      switch(difficulty) {
+        case "easy":
+          // Easy AI - mostly random
+          const options = ["E", "M", "C"];
+          choice = Phaser.Utils.Array.GetRandom(options);
+          break;
+          
+        case "normal":
+          // Normal AI - focuses on strongest resource
+          let maxResource = "economy";
+          if (aiResources.military > aiResources[maxResource]) maxResource = "military";
+          if (aiResources.culture > aiResources[maxResource]) maxResource = "culture";
+          
+          switch(maxResource) {
+            case "economy": choice = "E"; break;
+            case "military": choice = "M"; break;
+            case "culture": choice = "C"; break;
+          }
+          break;
+          
+        case "hard":
+          // Hard AI - counters player's strongest resource
+          let playerMaxResource = "economy";
+          if (playerResources.military > playerResources[playerMaxResource]) playerMaxResource = "military";
+          if (playerResources.culture > playerResources[playerMaxResource]) playerMaxResource = "culture";
+          
+          // Counter strategy
+          switch(playerMaxResource) {
+            case "economy": choice = "C"; break; // Culture beats Economy
+            case "military": choice = "E"; break; // Economy beats Military
+            case "culture": choice = "M"; break; // Military beats Culture
+          }
+          break;
+      }
+      
+      return choice;
+    }
+
+    // Update AI difficulty settings
+    function updateAIDifficulty() {
+      switch(difficulty) {
+        case "easy":
+          aiActionCooldown = 800; // Slower AI
+          break;
+        case "normal":
+          aiActionCooldown = 400; // Normal speed
+          break;
+        case "hard":
+          aiActionCooldown = 300; // Faster AI
+          // Give AI a starting boost
+          aiResources.economy += 1;
+          aiResources.military += 1;
+          aiResources.culture += 1;
+          break;
+      }
+    }
+
+    // Highlight cells of a specific type
     function highlightChoice(choice, isPlayer) {
       const color = isPlayer ? 0xffffff : 0xffcc00;
       const cells = isPlayer ? playerCells : aiCells;
       
       cells.forEach(cell => {
         if (cell.type === choice) {
-          graphics.lineStyle(2, color, 1);
+          graphics.lineStyle(3, color, 1);
           graphics.strokeRect(cell.c*CELL_SIZE, cell.r*CELL_SIZE, CELL_SIZE, CELL_SIZE);
         }
       });
@@ -428,19 +716,37 @@
       setTimeout(() => {
         cells.forEach(cell => {
           if (cell.type === choice) {
-            graphics.lineStyle(1, 0xffffff, 0.3);
+            graphics.lineStyle(2, 0xffffff, 0.5);
             graphics.strokeRect(cell.c*CELL_SIZE, cell.r*CELL_SIZE, CELL_SIZE, CELL_SIZE);
           }
         });
       }, 500);
     }
 
+    // Update cooldown indicators for player actions
+    function updateCooldownIndicators() {
+      const now = Date.now();
+      const timeSinceLastAction = now - lastPlayerActionTime;
+      const cooldownPercent = Math.min(100, (timeSinceLastAction / playerActionCooldown) * 100);
+      
+      document.getElementById('economyCooldown').style.height = `${100 - cooldownPercent}%`;
+      document.getElementById('militaryCooldown').style.height = `${100 - cooldownPercent}%`;
+      document.getElementById('cultureCooldown').style.height = `${100 - cooldownPercent}%`;
+    }
+
+    // Update the UI with current resource values
     function updateUI() {
       document.getElementById('economyValue').textContent = playerResources.economy;
       document.getElementById('militaryValue').textContent = playerResources.military;
       document.getElementById('cultureValue').textContent = playerResources.culture;
+      document.getElementById('specialValue').textContent = playerResources.special;
+      
+      // Enable/disable special ability button
+      document.getElementById('specialBtn').disabled = 
+        (playerResources.special < 5 || specialAbilityCooldown > 0);
     }
 
+    // Show a message to the player
     function showMessage(text) {
       const messageBox = document.getElementById('messageBox');
       messageBox.textContent = text;
@@ -451,11 +757,13 @@
       }, 3000);
     }
 
+    // Get the full name of a choice from its letter
     function getChoiceName(choice) {
       const names = { E: "Economy", M: "Military", C: "Culture" };
       return names[choice];
     }
 
+    // Check if the game has ended
     function checkGameState() {
       if (gameEnded) return;
       
@@ -476,6 +784,7 @@
       }
     }
 
+    // End the game and show results
     function endGame(message, victory) {
       gameActive = false;
       gameEnded = true;
