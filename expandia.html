@@ -2,82 +2,287 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Empire Clash</title>
+  <title>Empire Clash - Strategy Game</title>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Arial', sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      overflow: hidden;
+    }
+    #gameContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      height: 100vh;
+    }
+    #uiContainer {
+      width: 800px;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .resource {
+      display: flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 5px 15px;
+      border-radius: 20px;
+      margin: 0 5px;
+    }
+    .resource-icon {
+      width: 24px;
+      height: 24px;
+      margin-right: 8px;
+    }
+    #controls {
+      display: flex;
+      gap: 10px;
+    }
+    .choice-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .choice-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+    .choice-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    #economyBtn { background: #4cd964; color: white; }
+    #militaryBtn { background: #ff3b30; color: white; }
+    #cultureBtn { background: #9c27b0; color: white; }
+    #messageBox {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      padding: 10px 20px;
+      border-radius: 8px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 100;
+    }
+    #restartContainer {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.9);
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      z-index: 200;
+      display: none;
+    }
+    #restartBtn {
+      padding: 15px 30px;
+      background: #007aff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    #restartBtn:hover {
+      background: #0062cc;
+    }
+  </style>
 </head>
 <body>
+  <div id="gameContainer">
+    <div id="uiContainer">
+      <div id="playerResources">
+        <div class="resource">
+          <span>💰 Economy: <span id="economyValue">1</span></span>
+        </div>
+        <div class="resource">
+          <span>⚔️ Military: <span id="militaryValue">1</span></span>
+        </div>
+        <div class="resource">
+          <span>🎨 Culture: <span id="cultureValue">1</span></span>
+        </div>
+      </div>
+      <div id="controls">
+        <button id="economyBtn" class="choice-btn">Economy (E)</button>
+        <button id="militaryBtn" class="choice-btn">Military (M)</button>
+        <button id="cultureBtn" class="choice-btn">Culture (C)</button>
+      </div>
+    </div>
+    <div id="phaser-game"></div>
+    <div id="messageBox"></div>
+    <div id="restartContainer">
+      <h2 id="gameResultText">Game Over</h2>
+      <button id="restartBtn">Play Again</button>
+    </div>
+  </div>
+
   <script>
     const config = {
       type: Phaser.AUTO,
       width: 800,
       height: 800,
-      backgroundColor: '#222',
+      backgroundColor: '#1a1a2e',
+      parent: 'phaser-game',
       scene: {
-        create: create
+        preload: preload,
+        create: create,
+        update: update
       }
     };
 
     const game = new Phaser.Game(config);
-
-    const CELL_SIZE = 20;
-    const ROWS = 40;
-    const COLS = 40;
-    let graphics;
-    let grid = []; // 0=boş, 1=player, 2=AI
-
+    const CELL_SIZE = 80;
+    const ROWS = 10;
+    const COLS = 10;
+    
+    let grid = [];
     let playerCells = [];
     let aiCells = [];
+    let graphics;
+    let sceneContext;
+    let playerResources = {
+      economy: 1,
+      military: 1,
+      culture: 1
+    };
+    let aiResources = {
+      economy: 1,
+      military: 1,
+      culture: 1
+    };
+    let selectionTexts = [];
+    let lastPlayerActionTime = 0;
+    let playerActionCooldown = 300; // milliseconds
+    let lastAIActionTime = 0;
+    let aiActionCooldown = 400; // AI acts every second
+    let gameActive = true;
+    let gameEnded = false;
 
-    // Renkler
-    const PLAYER_COLOR = 0x00aaff; // mavi
-    const AI_COLOR = 0xff4444;     // kırmızı
-
-    // Taş-kağıt-makas kuralları
+    // Rock-paper-scissors rules
     const beats = {
-      E: "M", // Ekonomi askeriyeyi yener
-      M: "C", // Askeriye kültürü yener
-      C: "E"  // Kültür ekonomiyi yener
+      E: "M", // Economy beats Military
+      M: "C", // Military beats Culture
+      C: "E"  // Culture beats Economy
     };
 
+    function preload() {
+      // Simple colored rectangles for textures
+    }
+
     function create() {
+      sceneContext = this; // Save scene context
       graphics = this.add.graphics();
       drawGrid();
 
-      // Başlangıç noktaları
+      // Starting positions
       let pStart = {r: Math.floor(ROWS/2), c: Math.floor(COLS/4)};
       let aStart = {r: Math.floor(ROWS/2), c: Math.floor(3*COLS/4)};
-      claimCell(pStart.r, pStart.c, PLAYER_COLOR, 1);
-      claimCell(aStart.r, aStart.c, AI_COLOR, 2);
-      playerCells.push(pStart);
-      aiCells.push(aStart);
+      claimCell(pStart.r, pStart.c, 0x4cd964, 1, "E"); // Player start
+      claimCell(aStart.r, aStart.c, 0xff3b30, 2, "M"); // AI start
+      playerCells.push({...pStart, type: "E"});
+      aiCells.push({...aStart, type: "M"});
 
-      // Klavye inputları
-      this.input.keyboard.on('keydown-E', () => playRound("E"));
-      this.input.keyboard.on('keydown-M', () => playRound("M"));
-      this.input.keyboard.on('keydown-C', () => playRound("C"));
+      // UI update
+      updateUI();
+      
+      // Keyboard inputs
+      this.input.keyboard.on('keydown-E', () => tryPlayerAction("E"));
+      this.input.keyboard.on('keydown-M', () => tryPlayerAction("M"));
+      this.input.keyboard.on('keydown-C', () => tryPlayerAction("C"));
+      
+      // Button events
+      document.getElementById('economyBtn').addEventListener('click', () => tryPlayerAction("E"));
+      document.getElementById('militaryBtn').addEventListener('click', () => tryPlayerAction("M"));
+      document.getElementById('cultureBtn').addEventListener('click', () => tryPlayerAction("C"));
+      
+      // Restart button
+      document.getElementById('restartBtn').addEventListener('click', () => location.reload());
+      
+      // Game instructions
+      showMessage("Welcome to Empire Clash! Use E, M, C keys or buttons to expand your empire.");
+    }
+
+    function update(time, delta) {
+      if (!gameActive) return;
+      
+      // AI acts independently at regular intervals
+      const now = Date.now();
+      if (now - lastAIActionTime > aiActionCooldown) {
+        lastAIActionTime = now;
+        tryAIAction();
+      }
+      
+      // Check game state continuously
+      checkGameState();
     }
 
     function drawGrid() {
-      graphics.lineStyle(1, 0xffffff, 0.2);
+      graphics.lineStyle(1, 0xffffff, 0.1);
       for (let i = 0; i < ROWS; i++) {
         grid[i] = [];
         for (let j = 0; j < COLS; j++) {
           graphics.strokeRect(j*CELL_SIZE, i*CELL_SIZE, CELL_SIZE, CELL_SIZE);
-          grid[i][j] = 0;
+          grid[i][j] = {owner: 0, type: null};
         }
       }
     }
 
-    function claimCell(row, col, color, owner) {
-      grid[row][col] = owner;
+    function claimCell(row, col, color, owner, type) {
+      grid[row][col] = {owner, type};
+      
+      // Draw cell
       graphics.fillStyle(color, 1);
       graphics.fillRect(col*CELL_SIZE, row*CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      graphics.lineStyle(1, 0xffffff, 0.2);
+      
+      // Cell border
+      graphics.lineStyle(1, 0xffffff, 0.3);
       graphics.strokeRect(col*CELL_SIZE, row*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      
+      // Icon for cell type (E, M, C)
+      if (type && sceneContext) {
+        // Remove any existing text at this position
+        selectionTexts = selectionTexts.filter(text => {
+          if (Math.floor(text.x / CELL_SIZE) === col && Math.floor(text.y / CELL_SIZE) === row) {
+            text.destroy();
+            return false;
+          }
+          return true;
+        });
+        
+        const text = sceneContext.add.text(col*CELL_SIZE + CELL_SIZE/2, row*CELL_SIZE + CELL_SIZE/2, type, {
+          fontSize: '24px',
+          color: '#ffffff',
+          fontStyle: 'bold'
+        });
+        text.setOrigin(0.5, 0.5);
+        selectionTexts.push(text);
+      }
     }
 
-    function expand(cells, color, owner, choice, enemyChoice) {
+    function expand(cells, color, owner, choice, isPlayer) {
       let candidates = [];
+      const resources = isPlayer ? playerResources : aiResources;
+      
+      // Increase the resource level for the chosen type
+      resources[getResourceType(choice)] += 1;
+      updateUI();
+      
       for (let cell of cells) {
         let neighbors = [
           {r: cell.r-1, c: cell.c},
@@ -85,56 +290,208 @@
           {r: cell.r, c: cell.c-1},
           {r: cell.r, c: cell.c+1}
         ];
+        
         for (let n of neighbors) {
           if (n.r>=0 && n.r<ROWS && n.c>=0 && n.c<COLS) {
             let target = grid[n.r][n.c];
-            if (target === 0) {
-              // Boş kare → her zaman alabilir
+            if (target.owner === 0) {
+              // Empty cell → can always take
               candidates.push({pos: n, takeover: false});
-            } else if (target !== owner) {
-              // Düşmana ait kare → savaş olacak
-              candidates.push({pos: n, takeover: true});
+            } else if (target.owner !== owner) {
+              // Enemy cell → battle will happen
+              candidates.push({pos: n, takeover: true, defenderType: target.type});
             }
           }
         }
       }
+      
       if (candidates.length > 0) {
-        let choiceCell = Phaser.Utils.Array.GetRandom(candidates);
-
-        if (!choiceCell.takeover) {
-          // Boş kareyi al
-          claimCell(choiceCell.pos.r, choiceCell.pos.c, color, owner);
-          cells.push(choiceCell.pos);
+        // Select a random candidate
+        let selectedCell = Phaser.Utils.Array.GetRandom(candidates);
+        
+        if (!selectedCell.takeover) {
+          // Take empty cell
+          claimCell(selectedCell.pos.r, selectedCell.pos.c, color, owner, choice);
+          cells.push({...selectedCell.pos, type: choice});
+          
+          return {pos: selectedCell.pos, won: true, message: "Territory gained!"};
         } else {
-          // Düşmanın hücresi → taş-kağıt-makas ile çöz
-          if (beats[choice] === enemyChoice) {
-            // Bu taraf kazanır → düşmanın hücresini al
-            claimCell(choiceCell.pos.r, choiceCell.pos.c, color, owner);
-            cells.push(choiceCell.pos);
-            console.log(owner === 1 ? "Sen düşman toprağını aldın!" : "AI senin toprağını aldı!");
-          } else if (beats[enemyChoice] === choice) {
-            // Kaybeder → hiçbir şey olmaz
+          // Enemy cell → resolve with rock-paper-scissors and resource comparison
+          const attackerResources = isPlayer ? playerResources : aiResources;
+          const defenderResources = isPlayer ? aiResources : playerResources;
+          
+          const attackerPower = attackerResources[getResourceType(choice)];
+          const defenderPower = defenderResources[getResourceType(selectedCell.defenderType)];
+          
+          // Check if attacker wins by type advantage
+          const hasTypeAdvantage = beats[choice] === selectedCell.defenderType;
+          
+          // Check if attacker wins by resource advantage (at least 2x defender's power)
+          const hasResourceAdvantage = attackerPower >= defenderPower * 2;
+          
+          if (hasTypeAdvantage || hasResourceAdvantage) {
+            // Attacker wins → take enemy's cell
+            claimCell(selectedCell.pos.r, selectedCell.pos.c, color, owner, choice);
+            
+            // Remove old cell from list
+            if (owner === 1) {
+              aiCells = aiCells.filter(c => c.r !== selectedCell.pos.r || c.c !== selectedCell.pos.c);
+            } else {
+              playerCells = playerCells.filter(c => c.r !== selectedCell.pos.r || c.c !== selectedCell.pos.c);
+            }
+            
+            cells.push({...selectedCell.pos, type: choice});
+            
+            let winReason = hasTypeAdvantage ? "type advantage" : "overwhelming force";
+            return {pos: selectedCell.pos, won: true, message: `Enemy territory captured (${winReason})!`};
+          } else if (beats[selectedCell.defenderType] === choice) {
+            // Lose → nothing happens
+            return {pos: selectedCell.pos, won: false, message: "Attack failed!"};
           } else {
-            // Berabere → değişiklik yok
+            // Tie → no change
+            return {pos: selectedCell.pos, won: false, message: "Battle ended in a draw!"};
           }
         }
-
-        return choiceCell.pos;
       }
       return null;
     }
 
-    function playRound(playerChoice) {
-      // AI rastgele seçim yapar
-      const options = ["E","M","C"];
-      let aiChoice = Phaser.Utils.Array.GetRandom(options);
+    function getResourceType(choice) {
+      switch(choice) {
+        case "E": return "economy";
+        case "M": return "military";
+        case "C": return "culture";
+      }
+    }
 
-      console.log("Sen:", playerChoice, "| AI:", aiChoice);
+    function tryPlayerAction(playerChoice) {
+      if (!gameActive) return;
+      
+      const now = Date.now();
+      if (now - lastPlayerActionTime < playerActionCooldown) return;
+      lastPlayerActionTime = now;
+      
+      // Player expands
+      const playerResult = expand(playerCells, 0x4cd964, 1, playerChoice, true);
+      
+      if (playerResult) {
+        highlightChoice(playerChoice, true);
+        showMessage(`You used ${getChoiceName(playerChoice)}: ${playerResult.message}`);
+      } else {
+        showMessage(`You strengthened your ${getChoiceName(playerChoice)} but couldn't expand!`);
+      }
+    }
 
-      // Oyuncu genişler
-      expand(playerCells, PLAYER_COLOR, 1, playerChoice, aiChoice);
-      // AI genişler
-      expand(aiCells, AI_COLOR, 2, aiChoice, playerChoice);
+    function tryAIAction() {
+      if (!gameActive) return;
+      
+      // AI makes a choice based on its resources
+      let aiChoice = calculateAIChoice();
+      
+      // AI expands
+      const aiResult = expand(aiCells, 0xff3b30, 2, aiChoice, false);
+      
+      if (aiResult) {
+        highlightChoice(aiChoice, false);
+      }
+    }
+
+    function calculateAIChoice() {
+      // Simple AI strategy - focuses on the resource with the highest current value
+      const options = ["E", "M", "C"];
+      
+      // Find which resource AI has the most of
+      let maxResource = "economy";
+      if (aiResources.military > aiResources[maxResource]) maxResource = "military";
+      if (aiResources.culture > aiResources[maxResource]) maxResource = "culture";
+      
+      // Convert to choice letter
+      switch(maxResource) {
+        case "economy": return "E";
+        case "military": return "M";
+        case "culture": return "C";
+      }
+    }
+
+    function highlightChoice(choice, isPlayer) {
+      const color = isPlayer ? 0xffffff : 0xffcc00;
+      const cells = isPlayer ? playerCells : aiCells;
+      
+      cells.forEach(cell => {
+        if (cell.type === choice) {
+          graphics.lineStyle(2, color, 1);
+          graphics.strokeRect(cell.c*CELL_SIZE, cell.r*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
+      });
+      
+      // Remove highlight after 500ms
+      setTimeout(() => {
+        cells.forEach(cell => {
+          if (cell.type === choice) {
+            graphics.lineStyle(1, 0xffffff, 0.3);
+            graphics.strokeRect(cell.c*CELL_SIZE, cell.r*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          }
+        });
+      }, 500);
+    }
+
+    function updateUI() {
+      document.getElementById('economyValue').textContent = playerResources.economy;
+      document.getElementById('militaryValue').textContent = playerResources.military;
+      document.getElementById('cultureValue').textContent = playerResources.culture;
+    }
+
+    function showMessage(text) {
+      const messageBox = document.getElementById('messageBox');
+      messageBox.textContent = text;
+      messageBox.style.opacity = 1;
+      
+      setTimeout(() => {
+        messageBox.style.opacity = 0;
+      }, 3000);
+    }
+
+    function getChoiceName(choice) {
+      const names = { E: "Economy", M: "Military", C: "Culture" };
+      return names[choice];
+    }
+
+    function checkGameState() {
+      if (gameEnded) return;
+      
+      // Check if game has ended
+      if (playerCells.length === 0) {
+        endGame("You lost! AI conquered your empire.", false);
+      } else if (aiCells.length === 0) {
+        endGame("Congratulations! You conquered the AI empire.", true);
+      } else if (playerCells.length + aiCells.length === ROWS * COLS) {
+        // All territory is occupied
+        if (playerCells.length > aiCells.length) {
+          endGame("Congratulations! You have a larger empire.", true);
+        } else if (aiCells.length > playerCells.length) {
+          endGame("You lost! AI has a larger empire.", false);
+        } else {
+          endGame("It's a tie! Both empires are equal size.", null);
+        }
+      }
+    }
+
+    function endGame(message, victory) {
+      gameActive = false;
+      gameEnded = true;
+      
+      // Disable buttons
+      const buttons = document.querySelectorAll('.choice-btn');
+      buttons.forEach(btn => btn.disabled = true);
+      
+      // Show restart screen
+      const restartContainer = document.getElementById('restartContainer');
+      const gameResultText = document.getElementById('gameResultText');
+      
+      gameResultText.textContent = message;
+      restartContainer.style.display = 'block';
+      
+      showMessage(message);
     }
   </script>
 </body>
