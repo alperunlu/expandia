@@ -1,0 +1,4 @@
+; Godot project file
+[application]
+config/name="Expandia"
+run/main_scene="res://src/MainMenu.tscn"
