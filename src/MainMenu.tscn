@@ -1,0 +1,24 @@
+[gd_scene load_steps=4 format=3]
+[node name="MainMenu" type="Control"]
+
+[node name="TitleLabel" type="Label" parent="."
+text = "Expandia"
+rect_min_size = Vector2(400, 60)
+anchor_left = 0.25
+anchor_right = 0.75
+anchor_top = 0.1
+anchor_bottom = 0.2
+
+[node name="StartButton" type="Button" parent="."
+text = "Oyunu Başlat"
+anchor_left = 0.4
+anchor_right = 0.6
+anchor_top = 0.3
+anchor_bottom = 0.4
+
+[node name="ExitButton" type="Button" parent="."
+text = "Çıkış"
+anchor_left = 0.4
+anchor_right = 0.6
+anchor_top = 0.5
+anchor_bottom = 0.6
