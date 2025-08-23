@@ -1,0 +1,6 @@
+.import/
+.export/
+.export-debug/
+*.tmp
+.cache/
+*.log
