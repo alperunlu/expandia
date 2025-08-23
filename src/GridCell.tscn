@@ -1,0 +1,5 @@
+[gd_scene load_steps=2 format=3]
+[node name="GridCell" type="Node2D"]
+script = ExtResource( 1 )
+
+[ext_resource path="res://src/GridCell.gd" type="Script" id=1]
