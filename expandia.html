@@ -2,121 +2,149 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Empire Clash - Enhanced Strategy Game</title>
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
   <style>
-    body {
+    * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
+    }
+    
+    body {
       font-family: 'Arial', sans-serif;
       background: #1a1a2e;
       color: #fff;
       overflow: hidden;
+      touch-action: manipulation;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
     }
+    
     #gameContainer {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      width: 100vw;
-      height: 100vh;
-      padding: 10px;
-      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      padding: 5px;
+      overflow: hidden;
     }
+    
     #uiContainer {
-      width: 800px;
+      width: 100%;
+      max-width: 800px;
       display: flex;
       flex-wrap: wrap;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      gap: 10px;
+      justify-content: center;
+      gap: 8px;
+      padding: 5px;
+      margin-bottom: 5px;
     }
+    
     #playerResources {
       display: flex;
       flex-wrap: wrap;
       gap: 5px;
+      justify-content: center;
     }
+    
     .resource {
       display: flex;
       align-items: center;
       background: rgba(0, 0, 0, 0.5);
-      padding: 5px 10px;
-      border-radius: 20px;
-      font-size: 14px;
+      padding: 4px 8px;
+      border-radius: 15px;
+      font-size: 12px;
       white-space: nowrap;
     }
+    
     #controls {
       display: flex;
       flex-wrap: wrap;
       gap: 5px;
       justify-content: center;
     }
+    
     .choice-btn {
-      padding: 8px 12px;
+      padding: 6px 10px;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       font-weight: bold;
       cursor: pointer;
       transition: all 0.2s;
       position: relative;
       overflow: hidden;
-      font-size: 12px;
-      min-width: 70px;
+      font-size: 11px;
+      min-width: 60px;
     }
-    .choice-btn:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    }
-    .choice-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
+    
     #economyBtn { background: #4cd964; color: white; }
     #militaryBtn { background: #ff3b30; color: white; }
     #cultureBtn { background: #9c27b0; color: white; }
     #scienceBtn { background: #007aff; color: white; }
     #specialBtn { background: #ff9500; color: white; }
+    
+    #phaser-game-container {
+      width: 100%;
+      max-width: 800px;
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 0;
+    }
+    
+    #phaser-game {
+      width: 100%;
+      height: 100%;
+      border: 2px solid #333;
+      border-radius: 8px;
+    }
+    
     #messageBox {
       position: absolute;
-      top: 20px;
+      top: 10px;
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0, 0, 0, 0.8);
-      padding: 10px 20px;
-      border-radius: 8px;
+      padding: 8px 16px;
+      border-radius: 6px;
       opacity: 0;
       transition: opacity 0.3s;
       z-index: 100;
       text-align: center;
-      max-width: 80%;
+      max-width: 90%;
+      font-size: 14px;
     }
+    
     #restartContainer {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       background: rgba(0, 0, 0, 0.9);
-      padding: 30px;
-      border-radius: 15px;
+      padding: 20px;
+      border-radius: 12px;
       text-align: center;
       z-index: 200;
       display: none;
     }
+    
     #restartBtn {
-      padding: 15px 30px;
+      padding: 12px 24px;
       background: #007aff;
       color: white;
       border: none;
-      border-radius: 8px;
-      font-size: 18px;
+      border-radius: 6px;
+      font-size: 16px;
       cursor: pointer;
-      margin-top: 20px;
+      margin-top: 15px;
     }
-    #restartBtn:hover {
-      background: #0062cc;
-    }
+    
     .cooldown-overlay {
       position: absolute;
       bottom: 0;
@@ -125,49 +153,178 @@
       width: 100%;
       transition: height 0.3s;
     }
-    #specialCooldown {
-      position: absolute;
-      top: -25px;
-      width: 100%;
-      text-align: center;
-      font-size: 12px;
-    }
+    
     #difficultySelect {
-      padding: 5px 10px;
-      border-radius: 5px;
+      padding: 4px 8px;
+      border-radius: 4px;
       border: none;
-      margin-left: 5px;
-      font-size: 12px;
-      height: 32px;
+      font-size: 11px;
+      height: 28px;
       align-self: center;
     }
-    #phaser-game {
-      width: 800px;
-      height: 600px;
-      overflow: hidden;
-      border: 2px solid #333;
-      border-radius: 10px;
+    
+    /* Mobil Gamepad Kontrolleri */
+    #mobileControls {
+      display: none;
+      justify-content: center;
+      width: 100%;
+      padding: 10px 0;
     }
-    @media (max-height: 900px) {
-      #phaser-game {
-        height: 500px;
-      }
+    
+    #mobileGamepad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 12px;
+      border-radius: 50%;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    }
+    
+    .gamepad-btn {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 16px;
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.1s;
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    .gamepad-btn:active {
+      transform: scale(0.9);
+    }
+    
+    #gamepadE {
+      grid-column: 2;
+      grid-row: 1;
+      background: #4cd964;
+    }
+    
+    #gamepadM {
+      grid-column: 3;
+      grid-row: 2;
+      background: #ff3b30;
+    }
+    
+    #gamepadC {
+      grid-column: 2;
+      grid-row: 3;
+      background: #9c27b0;
+    }
+    
+    #gamepadS {
+      grid-column: 1;
+      grid-row: 2;
+      background: #007aff;
+    }
+    
+    #gamepadX {
+      grid-column: 2;
+      grid-row: 2;
+      background: #ff9500;
+      width: 55px;
+      height: 55px;
+      font-size: 18px;
+    }
+    
+    /* Mobil için özel düzenlemeler */
+    @media (max-width: 768px) {
       #uiContainer {
-        margin-bottom: 5px;
+        padding: 3px;
+        gap: 5px;
+      }
+      
+      .resource {
+        font-size: 11px;
+        padding: 3px 6px;
+      }
+      
+      .choice-btn {
+        padding: 5px 8px;
+        font-size: 10px;
+        min-width: 50px;
+      }
+      
+      #controls {
+        display: none;
+      }
+      
+      #mobileControls {
+        display: flex;
+      }
+      
+      #phaser-game {
+        border-radius: 6px;
+      }
+      
+      #difficultySelect {
+        font-size: 10px;
+        padding: 3px 6px;
+        height: 26px;
       }
     }
-    @media (max-height: 800px) {
-      #phaser-game {
-        height: 450px;
+    
+    @media (max-width: 480px) {
+      .gamepad-btn {
+        width: 42px;
+        height: 42px;
+        font-size: 14px;
       }
-      .choice-btn {
-        padding: 6px 10px;
-        font-size: 11px;
-        min-width: 60px;
+      
+      #gamepadX {
+        width: 48px;
+        height: 48px;
+        font-size: 16px;
       }
+      
+      #mobileGamepad {
+        padding: 10px;
+        gap: 6px;
+      }
+      
       .resource {
-        font-size: 12px;
-        padding: 4px 8px;
+        font-size: 10px;
+        padding: 2px 5px;
+      }
+    }
+    
+    @media (max-height: 700px) and (orientation: landscape) {
+      #gameContainer {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-around;
+        padding: 3px;
+      }
+      
+      #uiContainer {
+        width: 40%;
+        max-width: none;
+        margin-bottom: 0;
+        order: 1;
+      }
+      
+      #phaser-game-container {
+        width: 55%;
+        order: 2;
+      }
+      
+      #mobileControls {
+        width: 100%;
+        order: 3;
+        padding: 5px 0;
+      }
+      
+      #mobileGamepad {
+        transform: scale(0.9);
       }
     }
   </style>
@@ -193,14 +350,11 @@
         </div>
       </div>
       <div id="controls">
-        <button id="economyBtn" class="choice-btn">Economy (E)<div class="cooldown-overlay" id="economyCooldown"></div></button>
-        <button id="militaryBtn" class="choice-btn">Military (M)<div class="cooldown-overlay" id="militaryCooldown"></div></button>
-        <button id="cultureBtn" class="choice-btn">Culture (C)<div class="cooldown-overlay" id="cultureCooldown"></div></button>
-        <button id="scienceBtn" class="choice-btn">Science (S)<div class="cooldown-overlay" id="scienceCooldown"></div></button>
-        <button id="specialBtn" class="choice-btn">Special (X)
-          <div class="cooldown-overlay" id="specialCooldownOverlay"></div>
-          <div id="specialCooldown"></div>
-        </button>
+        <button id="economyBtn" class="choice-btn">Econ (E)</button>
+        <button id="militaryBtn" class="choice-btn">Mil (M)</button>
+        <button id="cultureBtn" class="choice-btn">Cult (C)</button>
+        <button id="scienceBtn" class="choice-btn">Sci (S)</button>
+        <button id="specialBtn" class="choice-btn">Special (X)</button>
         <select id="difficultySelect">
           <option value="easy">Easy</option>
           <option value="normal" selected>Normal</option>
@@ -208,7 +362,21 @@
         </select>
       </div>
     </div>
-    <div id="phaser-game"></div>
+    
+    <div id="phaser-game-container">
+      <div id="phaser-game"></div>
+    </div>
+    
+    <div id="mobileControls">
+      <div id="mobileGamepad">
+        <div id="gamepadS" class="gamepad-btn">S</div>
+        <div id="gamepadE" class="gamepad-btn">E</div>
+        <div id="gamepadM" class="gamepad-btn">M</div>
+        <div id="gamepadX" class="gamepad-btn">X</div>
+        <div id="gamepadC" class="gamepad-btn">C</div>
+      </div>
+    </div>
+    
     <div id="messageBox"></div>
     <div id="restartContainer">
       <h2 id="gameResultText">Game Over</h2>
@@ -221,23 +389,30 @@
     const config = {
       type: Phaser.AUTO,
       width: 800,
-      height: 600,  // Oyun alanını küçülttük
-      backgroundColor: '#1a1a2e',
+      height: 600,
       parent: 'phaser-game',
+      backgroundColor: '#1a1a2e',
       scene: {
         preload: preload,
         create: create,
         update: update
+      },
+      // Ekran boyutlandırma ayarları
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: 800,
+        height: 600
       }
     };
 
     // Initialize the game
     const game = new Phaser.Game(config);
     
-    // Game constants - Hücre boyutunu küçülttük
-    const CELL_SIZE = 60;
+    // Game constants
     const ROWS = 10;
     const COLS = 10;
+    let CELL_SIZE = 60; // Başlangıç değeri, create içinde güncellenecek
     
     // Game state variables
     let grid = [];
@@ -289,6 +464,12 @@
     function create() {
       sceneContext = this;
       graphics = this.add.graphics();
+      
+      // Hücre boyutunu ekrana göre ayarla
+      const gameWidth = this.sys.game.config.width;
+      const gameHeight = this.sys.game.config.height;
+      CELL_SIZE = Math.min(gameWidth / COLS, gameHeight / ROWS);
+      
       drawGrid();
 
       // Starting positions for player and AI
@@ -320,28 +501,111 @@
         updateAIDifficulty();
       });
       
+      // Mobil gamepad events
+      document.getElementById('gamepadE').addEventListener('click', () => tryPlayerAction("E"));
+      document.getElementById('gamepadM').addEventListener('click', () => tryPlayerAction("M"));
+      document.getElementById('gamepadC').addEventListener('click', () => tryPlayerAction("C"));
+      document.getElementById('gamepadS').addEventListener('click', () => tryPlayerAction("S"));
+      document.getElementById('gamepadX').addEventListener('click', () => useSpecialAbility());
+      
+      // Touch events for mobile
+      const addTouchEvent = (element, action) => {
+        element.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          action();
+        }, { passive: false });
+      };
+      
+      addTouchEvent(document.getElementById('gamepadE'), () => tryPlayerAction("E"));
+      addTouchEvent(document.getElementById('gamepadM'), () => tryPlayerAction("M"));
+      addTouchEvent(document.getElementById('gamepadC'), () => tryPlayerAction("C"));
+      addTouchEvent(document.getElementById('gamepadS'), () => tryPlayerAction("S"));
+      addTouchEvent(document.getElementById('gamepadX'), () => useSpecialAbility());
+      
       // Restart button
-      document.getElementById('restartBtn').addEventListener('click', () => location.reload());
+      document.getElementById('restartBtn').addEventListener('click', () => {
+        // Sayfayı yeniden yükle
+        location.reload();
+      });
       
       // Game instructions
       showMessage("Welcome to Empire Clash! Use E, M, C, S keys or buttons. Press X for special ability!");
+    }
+
+    // Draw the game grid
+    function drawGrid() {
+      graphics.clear();
+      graphics.lineStyle(1, 0xffffff, 0.1);
+      
+      for (let i = 0; i <= ROWS; i++) {
+        graphics.moveTo(0, i * CELL_SIZE);
+        graphics.lineTo(COLS * CELL_SIZE, i * CELL_SIZE);
+      }
+      
+      for (let j = 0; j <= COLS; j++) {
+        graphics.moveTo(j * CELL_SIZE, 0);
+        graphics.lineTo(j * CELL_SIZE, ROWS * CELL_SIZE);
+      }
+      
+      graphics.strokePath();
+      
+      // Initialize grid
+      for (let i = 0; i < ROWS; i++) {
+        grid[i] = [];
+        for (let j = 0; j < COLS; j++) {
+          grid[i][j] = {owner: 0, type: null};
+        }
+      }
+    }
+
+    // Claim a cell for a player or AI
+    function claimCell(row, col, color, owner, type) {
+      grid[row][col] = {owner, type};
+      
+      // Draw cell with gradient for visual appeal
+      graphics.fillStyle(color, 1);
+      graphics.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      
+      // Cell border
+      graphics.lineStyle(2, 0xffffff, 0.5);
+      graphics.strokeRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      
+      // Icon for cell type (E, M, C, S)
+      if (type && sceneContext) {
+        // Remove any existing text at this position
+        selectionTexts = selectionTexts.filter(text => {
+          if (Math.floor(text.x / CELL_SIZE) === col && Math.floor(text.y / CELL_SIZE) === row) {
+            text.destroy();
+            return false;
+          }
+          return true;
+        });
+        
+        const text = sceneContext.add.text(
+          col * CELL_SIZE + CELL_SIZE / 2, 
+          row * CELL_SIZE + CELL_SIZE / 2, 
+          type, 
+          {
+            fontSize: Math.floor(CELL_SIZE / 2.5) + 'px',
+            color: '#ffffff',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: Math.floor(CELL_SIZE / 15)
+          }
+        );
+        text.setOrigin(0.5, 0.5);
+        selectionTexts.push(text);
+      }
     }
 
     // Main game loop
     function update(time, delta) {
       if (!gameActive) return;
       
-      // Update cooldown indicators
-      updateCooldownIndicators();
-      
       // Update special ability cooldown
       if (specialAbilityCooldown > 0) {
         specialAbilityCooldown -= delta;
         if (specialAbilityCooldown < 0) specialAbilityCooldown = 0;
-        document.getElementById('specialCooldown').textContent = 
-          `CD: ${Math.ceil(specialAbilityCooldown/1000)}s`;
-        document.getElementById('specialCooldownOverlay').style.height = 
-          `${(specialAbilityCooldown/10000) * 100}%`;
       }
       
       // Update AI special ability cooldown
@@ -358,53 +622,6 @@
       
       // Check game state continuously
       checkGameState();
-    }
-
-    // Draw the game grid
-    function drawGrid() {
-      graphics.lineStyle(1, 0xffffff, 0.1);
-      for (let i = 0; i < ROWS; i++) {
-        grid[i] = [];
-        for (let j = 0; j < COLS; j++) {
-          graphics.strokeRect(j*CELL_SIZE, i*CELL_SIZE, CELL_SIZE, CELL_SIZE);
-          grid[i][j] = {owner: 0, type: null};
-        }
-      }
-    }
-
-    // Claim a cell for a player or AI
-    function claimCell(row, col, color, owner, type) {
-      grid[row][col] = {owner, type};
-      
-      // Draw cell with gradient for visual appeal
-      graphics.fillStyle(color, 1);
-      graphics.fillRect(col*CELL_SIZE, row*CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      
-      // Cell border
-      graphics.lineStyle(2, 0xffffff, 0.5);
-      graphics.strokeRect(col*CELL_SIZE, row*CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      
-      // Icon for cell type (E, M, C, S)
-      if (type && sceneContext) {
-        // Remove any existing text at this position
-        selectionTexts = selectionTexts.filter(text => {
-          if (Math.floor(text.x / CELL_SIZE) === col && Math.floor(text.y / CELL_SIZE) === row) {
-            text.destroy();
-            return false;
-          }
-          return true;
-        });
-        
-        const text = sceneContext.add.text(col*CELL_SIZE + CELL_SIZE/2, row*CELL_SIZE + CELL_SIZE/2, type, {
-          fontSize: '20px',
-          color: '#ffffff',
-          fontStyle: 'bold',
-          stroke: '#000000',
-          strokeThickness: 3
-        });
-        text.setOrigin(0.5, 0.5);
-        selectionTexts.push(text);
-      }
     }
 
     // Expand territory for a player or AI
@@ -496,7 +713,7 @@
             cells.push({...selectedCell.pos, type: choice});
             
             // Visual effect for battle win
-            createBattleEffect(selectedCell.pos.c, selectedCell.pos.r, color);
+            createBattleEffect(selectedCell.pos.c, selectedCell.pos.r, color, true);
             
             return {pos: selectedCell.pos, won: true, message: battleResult.message};
           } else {
@@ -566,7 +783,7 @@
     function createExpansionEffect(x, y, color) {
       const effect = sceneContext.add.graphics();
       effect.fillStyle(color, 0.5);
-      effect.fillRect(x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      effect.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
       
       sceneContext.tweens.add({
         targets: effect,
@@ -580,7 +797,7 @@
     function createBattleEffect(x, y, color, success = true) {
       const effect = sceneContext.add.graphics();
       effect.lineStyle(4, color, 1);
-      effect.strokeRect(x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      effect.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
       
       sceneContext.tweens.add({
         targets: effect,
@@ -597,6 +814,7 @@
         case "M": return "military";
         case "C": return "culture";
         case "S": return "science";
+        default: return "economy";
       }
     }
 
@@ -832,7 +1050,7 @@
       cells.forEach(cell => {
         if (cell.type === choice) {
           graphics.lineStyle(3, color, 1);
-          graphics.strokeRect(cell.c*CELL_SIZE, cell.r*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          graphics.strokeRect(cell.c * CELL_SIZE, cell.r * CELL_SIZE, CELL_SIZE, CELL_SIZE);
         }
       });
       
@@ -841,22 +1059,10 @@
         cells.forEach(cell => {
           if (cell.type === choice) {
             graphics.lineStyle(2, 0xffffff, 0.5);
-            graphics.strokeRect(cell.c*CELL_SIZE, cell.r*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            graphics.strokeRect(cell.c * CELL_SIZE, cell.r * CELL_SIZE, CELL_SIZE, CELL_SIZE);
           }
         });
       }, 500);
-    }
-
-    // Update cooldown indicators for player actions
-    function updateCooldownIndicators() {
-      const now = Date.now();
-      const timeSinceLastAction = now - lastPlayerActionTime;
-      const cooldownPercent = Math.min(100, (timeSinceLastAction / playerActionCooldown) * 100);
-      
-      document.getElementById('economyCooldown').style.height = `${100 - cooldownPercent}%`;
-      document.getElementById('militaryCooldown').style.height = `${100 - cooldownPercent}%`;
-      document.getElementById('cultureCooldown').style.height = `${100 - cooldownPercent}%`;
-      document.getElementById('scienceCooldown').style.height = `${100 - cooldownPercent}%`;
     }
 
     // Update the UI with current resource values
