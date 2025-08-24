@@ -20,27 +20,39 @@
       justify-content: center;
       width: 100vw;
       height: 100vh;
+      padding: 10px;
+      box-sizing: border-box;
     }
     #uiContainer {
       width: 800px;
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       margin-bottom: 10px;
+      gap: 10px;
+    }
+    #playerResources {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
     }
     .resource {
       display: flex;
       align-items: center;
       background: rgba(0, 0, 0, 0.5);
-      padding: 5px 15px;
+      padding: 5px 10px;
       border-radius: 20px;
-      margin: 0 5px;
+      font-size: 14px;
+      white-space: nowrap;
     }
     #controls {
       display: flex;
-      gap: 10px;
+      flex-wrap: wrap;
+      gap: 5px;
+      justify-content: center;
     }
     .choice-btn {
-      padding: 10px 20px;
+      padding: 8px 12px;
       border: none;
       border-radius: 8px;
       font-weight: bold;
@@ -48,6 +60,8 @@
       transition: all 0.2s;
       position: relative;
       overflow: hidden;
+      font-size: 12px;
+      min-width: 70px;
     }
     .choice-btn:hover {
       transform: translateY(-3px);
@@ -62,6 +76,7 @@
     #economyBtn { background: #4cd964; color: white; }
     #militaryBtn { background: #ff3b30; color: white; }
     #cultureBtn { background: #9c27b0; color: white; }
+    #scienceBtn { background: #007aff; color: white; }
     #specialBtn { background: #ff9500; color: white; }
     #messageBox {
       position: absolute;
@@ -74,6 +89,8 @@
       opacity: 0;
       transition: opacity 0.3s;
       z-index: 100;
+      text-align: center;
+      max-width: 80%;
     }
     #restartContainer {
       position: absolute;
@@ -119,7 +136,39 @@
       padding: 5px 10px;
       border-radius: 5px;
       border: none;
-      margin-left: 10px;
+      margin-left: 5px;
+      font-size: 12px;
+      height: 32px;
+      align-self: center;
+    }
+    #phaser-game {
+      width: 800px;
+      height: 600px;
+      overflow: hidden;
+      border: 2px solid #333;
+      border-radius: 10px;
+    }
+    @media (max-height: 900px) {
+      #phaser-game {
+        height: 500px;
+      }
+      #uiContainer {
+        margin-bottom: 5px;
+      }
+    }
+    @media (max-height: 800px) {
+      #phaser-game {
+        height: 450px;
+      }
+      .choice-btn {
+        padding: 6px 10px;
+        font-size: 11px;
+        min-width: 60px;
+      }
+      .resource {
+        font-size: 12px;
+        padding: 4px 8px;
+      }
     }
   </style>
 </head>
@@ -128,23 +177,27 @@
     <div id="uiContainer">
       <div id="playerResources">
         <div class="resource">
-          <span>💰 Economy: <span id="economyValue">1</span></span>
+          <span>💰: <span id="economyValue">1</span></span>
         </div>
         <div class="resource">
-          <span>⚔️ Military: <span id="militaryValue">1</span></span>
+          <span>⚔️: <span id="militaryValue">1</span></span>
         </div>
         <div class="resource">
-          <span>🎨 Culture: <span id="cultureValue">1</span></span>
+          <span>🎨: <span id="cultureValue">1</span></span>
         </div>
         <div class="resource">
-          <span>🎯 Special: <span id="specialValue">0</span>/5</span>
+          <span>🔬: <span id="scienceValue">1</span></span>
+        </div>
+        <div class="resource">
+          <span>🎯: <span id="specialValue">0</span>/5</span>
         </div>
       </div>
       <div id="controls">
         <button id="economyBtn" class="choice-btn">Economy (E)<div class="cooldown-overlay" id="economyCooldown"></div></button>
         <button id="militaryBtn" class="choice-btn">Military (M)<div class="cooldown-overlay" id="militaryCooldown"></div></button>
         <button id="cultureBtn" class="choice-btn">Culture (C)<div class="cooldown-overlay" id="cultureCooldown"></div></button>
-        <button id="specialBtn" class="choice-btn">Special Ability (S)
+        <button id="scienceBtn" class="choice-btn">Science (S)<div class="cooldown-overlay" id="scienceCooldown"></div></button>
+        <button id="specialBtn" class="choice-btn">Special (X)
           <div class="cooldown-overlay" id="specialCooldownOverlay"></div>
           <div id="specialCooldown"></div>
         </button>
@@ -168,7 +221,7 @@
     const config = {
       type: Phaser.AUTO,
       width: 800,
-      height: 800,
+      height: 600,  // Oyun alanını küçülttük
       backgroundColor: '#1a1a2e',
       parent: 'phaser-game',
       scene: {
@@ -181,8 +234,8 @@
     // Initialize the game
     const game = new Phaser.Game(config);
     
-    // Game constants
-    const CELL_SIZE = 80;
+    // Game constants - Hücre boyutunu küçülttük
+    const CELL_SIZE = 60;
     const ROWS = 10;
     const COLS = 10;
     
@@ -196,18 +249,20 @@
       economy: 1,
       military: 1,
       culture: 1,
+      science: 1,
       special: 0
     };
     let aiResources = {
       economy: 1,
       military: 1,
-      culture: 1
+      culture: 1,
+      science: 1
     };
     let selectionTexts = [];
     let lastPlayerActionTime = 0;
-    let playerActionCooldown = 300; // milliseconds
+    let playerActionCooldown = 300;
     let lastAIActionTime = 0;
-    let aiActionCooldown = 400; // milliseconds
+    let aiActionCooldown = 400;
     let gameActive = true;
     let gameEnded = false;
     let specialAbilityCooldown = 0;
@@ -217,11 +272,12 @@
     let aiSpecialCharge = 0;
     let aiSpecialCooldown = 0;
 
-    // Rock-paper-scissors rules
+    // 4'lü taş-kağıt-makas dengesi
     const beats = {
+      S: "E", // Science beats Economy
       E: "M", // Economy beats Military
       M: "C", // Military beats Culture
-      C: "E"  // Culture beats Economy
+      C: "S"  // Culture beats Science
     };
 
     // Preload assets
@@ -250,12 +306,14 @@
       this.input.keyboard.on('keydown-E', () => tryPlayerAction("E"));
       this.input.keyboard.on('keydown-M', () => tryPlayerAction("M"));
       this.input.keyboard.on('keydown-C', () => tryPlayerAction("C"));
-      this.input.keyboard.on('keydown-S', () => useSpecialAbility());
+      this.input.keyboard.on('keydown-S', () => tryPlayerAction("S"));
+      this.input.keyboard.on('keydown-X', () => useSpecialAbility());
       
       // Button events
       document.getElementById('economyBtn').addEventListener('click', () => tryPlayerAction("E"));
       document.getElementById('militaryBtn').addEventListener('click', () => tryPlayerAction("M"));
       document.getElementById('cultureBtn').addEventListener('click', () => tryPlayerAction("C"));
+      document.getElementById('scienceBtn').addEventListener('click', () => tryPlayerAction("S"));
       document.getElementById('specialBtn').addEventListener('click', () => useSpecialAbility());
       document.getElementById('difficultySelect').addEventListener('change', (e) => {
         difficulty = e.target.value;
@@ -266,7 +324,7 @@
       document.getElementById('restartBtn').addEventListener('click', () => location.reload());
       
       // Game instructions
-      showMessage("Welcome to Empire Clash! Use E, M, C keys or buttons. Press S for special ability!");
+      showMessage("Welcome to Empire Clash! Use E, M, C, S keys or buttons. Press X for special ability!");
     }
 
     // Main game loop
@@ -281,7 +339,7 @@
         specialAbilityCooldown -= delta;
         if (specialAbilityCooldown < 0) specialAbilityCooldown = 0;
         document.getElementById('specialCooldown').textContent = 
-          `Cooldown: ${Math.ceil(specialAbilityCooldown/1000)}s`;
+          `CD: ${Math.ceil(specialAbilityCooldown/1000)}s`;
         document.getElementById('specialCooldownOverlay').style.height = 
           `${(specialAbilityCooldown/10000) * 100}%`;
       }
@@ -326,7 +384,7 @@
       graphics.lineStyle(2, 0xffffff, 0.5);
       graphics.strokeRect(col*CELL_SIZE, row*CELL_SIZE, CELL_SIZE, CELL_SIZE);
       
-      // Icon for cell type (E, M, C)
+      // Icon for cell type (E, M, C, S)
       if (type && sceneContext) {
         // Remove any existing text at this position
         selectionTexts = selectionTexts.filter(text => {
@@ -338,11 +396,11 @@
         });
         
         const text = sceneContext.add.text(col*CELL_SIZE + CELL_SIZE/2, row*CELL_SIZE + CELL_SIZE/2, type, {
-          fontSize: '24px',
+          fontSize: '20px',
           color: '#ffffff',
           fontStyle: 'bold',
           stroke: '#000000',
-          strokeThickness: 4
+          strokeThickness: 3
         });
         text.setOrigin(0.5, 0.5);
         selectionTexts.push(text);
@@ -415,16 +473,16 @@
           const attackerResources = isPlayer ? playerResources : aiResources;
           const defenderResources = isPlayer ? aiResources : playerResources;
           
+          const attackerType = choice;
+          const defenderType = selectedCell.defenderType;
+          
           const attackerPower = attackerResources[getResourceType(choice)];
-          const defenderPower = defenderResources[getResourceType(selectedCell.defenderType)];
+          const defenderPower = defenderResources[getResourceType(defenderType)];
           
-          // Check if attacker wins by type advantage
-          const hasTypeAdvantage = beats[choice] === selectedCell.defenderType;
+          // Gelişmiş savaş mekaniği
+          let battleResult = calculateBattleResult(attackerType, defenderType, attackerPower, defenderPower);
           
-          // Check if attacker wins by resource advantage
-          const hasResourceAdvantage = attackerPower > defenderPower;
-          
-          if (hasTypeAdvantage || hasResourceAdvantage) {
+          if (battleResult.win) {
             // Attacker wins → take enemy's cell
             claimCell(selectedCell.pos.r, selectedCell.pos.c, color, owner, choice);
             
@@ -440,16 +498,68 @@
             // Visual effect for battle win
             createBattleEffect(selectedCell.pos.c, selectedCell.pos.r, color);
             
-            let winReason = hasTypeAdvantage ? "type advantage" : "superior resources";
-            return {pos: selectedCell.pos, won: true, message: `Enemy territory captured (${winReason})!`};
+            return {pos: selectedCell.pos, won: true, message: battleResult.message};
           } else {
             // Lose → nothing happens
             createBattleEffect(selectedCell.pos.c, selectedCell.pos.r, 0x888888, false);
-            return {pos: selectedCell.pos, won: false, message: "Attack failed!"};
+            return {pos: selectedCell.pos, won: false, message: battleResult.message};
           }
         }
       }
       return null;
+    }
+
+    // Gelişmiş savaş sonucu hesaplama
+    function calculateBattleResult(attackerType, defenderType, attackerPower, defenderPower) {
+      // Aynı türde çarpışma
+      if (attackerType === defenderType) {
+        if (attackerPower > defenderPower) {
+          return {win: true, message: "Won with superior resources!"};
+        } else if (defenderPower > attackerPower) {
+          return {win: false, message: "Lost to superior resources!"};
+        } else {
+          // Eşit güç - rastgele sonuç
+          return {win: Math.random() > 0.5, message: "Narrow victory/loss in equal battle!"};
+        }
+      }
+      
+      // Tür avantajı kontrolü
+      const hasTypeAdvantage = beats[attackerType] === defenderType;
+      const hasTypeDisadvantage = beats[defenderType] === attackerType;
+      
+      // Tür avantajı varsa
+      if (hasTypeAdvantage) {
+        const winChance = attackerPower / (attackerPower + defenderPower);
+        const win = Math.random() < winChance;
+        
+        if (win) {
+          return {win: true, message: `Won with type advantage!`};
+        } else {
+          return {win: false, message: `Type advantage wasn't enough!`};
+        }
+      }
+      
+      // Tür dezavantajı varsa
+      if (hasTypeDisadvantage) {
+        const winChance = attackerPower / (attackerPower + defenderPower * 2); // Dezavantajlı durum
+        const win = Math.random() < winChance;
+        
+        if (win) {
+          return {win: true, message: `Overcame type disadvantage!`};
+        } else {
+          return {win: false, message: `Lost due to type disadvantage!`};
+        }
+      }
+      
+      // Normal çarpışma (tür avantajı/dezavantajı yok)
+      const winChance = attackerPower / (attackerPower + defenderPower);
+      const win = Math.random() < winChance;
+      
+      if (win) {
+        return {win: true, message: `Won with resource advantage!`};
+      } else {
+        return {win: false, message: `Lost to resource advantage!`};
+      }
     }
 
     // Create visual effect for expansion
@@ -486,6 +596,7 @@
         case "E": return "economy";
         case "M": return "military";
         case "C": return "culture";
+        case "S": return "science";
       }
     }
 
@@ -646,34 +757,46 @@
       switch(difficulty) {
         case "easy":
           // Easy AI - mostly random
-          const options = ["E", "M", "C"];
+          const options = ["E", "M", "C", "S"];
           choice = Phaser.Utils.Array.GetRandom(options);
           break;
           
         case "normal":
           // Normal AI - focuses on strongest resource
           let maxResource = "economy";
-          if (aiResources.military > aiResources[maxResource]) maxResource = "military";
-          if (aiResources.culture > aiResources[maxResource]) maxResource = "culture";
+          const resources = ["economy", "military", "culture", "science"];
+          
+          for (let resource of resources) {
+            if (aiResources[resource] > aiResources[maxResource]) {
+              maxResource = resource;
+            }
+          }
           
           switch(maxResource) {
             case "economy": choice = "E"; break;
             case "military": choice = "M"; break;
             case "culture": choice = "C"; break;
+            case "science": choice = "S"; break;
           }
           break;
           
         case "hard":
           // Hard AI - counters player's strongest resource
           let playerMaxResource = "economy";
-          if (playerResources.military > playerResources[playerMaxResource]) playerMaxResource = "military";
-          if (playerResources.culture > playerResources[playerMaxResource]) playerMaxResource = "culture";
+          const playerResourcesList = ["economy", "military", "culture", "science"];
+          
+          for (let resource of playerResourcesList) {
+            if (playerResources[resource] > playerResources[playerMaxResource]) {
+              playerMaxResource = resource;
+            }
+          }
           
           // Counter strategy
           switch(playerMaxResource) {
-            case "economy": choice = "C"; break; // Culture beats Economy
+            case "economy": choice = "S"; break; // Science beats Economy
             case "military": choice = "E"; break; // Economy beats Military
             case "culture": choice = "M"; break; // Military beats Culture
+            case "science": choice = "C"; break; // Culture beats Science
           }
           break;
       }
@@ -696,6 +819,7 @@
           aiResources.economy += 1;
           aiResources.military += 1;
           aiResources.culture += 1;
+          aiResources.science += 1;
           break;
       }
     }
@@ -732,6 +856,7 @@
       document.getElementById('economyCooldown').style.height = `${100 - cooldownPercent}%`;
       document.getElementById('militaryCooldown').style.height = `${100 - cooldownPercent}%`;
       document.getElementById('cultureCooldown').style.height = `${100 - cooldownPercent}%`;
+      document.getElementById('scienceCooldown').style.height = `${100 - cooldownPercent}%`;
     }
 
     // Update the UI with current resource values
@@ -739,6 +864,7 @@
       document.getElementById('economyValue').textContent = playerResources.economy;
       document.getElementById('militaryValue').textContent = playerResources.military;
       document.getElementById('cultureValue').textContent = playerResources.culture;
+      document.getElementById('scienceValue').textContent = playerResources.science;
       document.getElementById('specialValue').textContent = playerResources.special;
       
       // Enable/disable special ability button
@@ -759,7 +885,7 @@
 
     // Get the full name of a choice from its letter
     function getChoiceName(choice) {
-      const names = { E: "Economy", M: "Military", C: "Culture" };
+      const names = { E: "Economy", M: "Military", C: "Culture", S: "Science" };
       return names[choice];
     }
 
