@@ -4,3 +4,4 @@
 *.tmp
 .cache/
 *.log
+node_modules/

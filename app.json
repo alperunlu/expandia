@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Expandia",
+    "slug": "expandia",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./resources/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./resources/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#05070F"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.alu.expandia",
+      "infoPlist": {
+        "UIStatusBarStyle": "UIStatusBarStyleLightContent",
+        "UIViewControllerBasedStatusBarAppearance": false,
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "cceb7ebd-0ede-4924-a6aa-3cbfdbe3ed4a"
+      }
+    },
+    "owner": "alperunlu"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "expandia",
+  "version": "1.0.0",
+  "description": "Expandia - Empire Clash Strategy Game",
+  "private": true,
+  "main": "App.js",
+  "scripts": {
+    "bundle": "node scripts/bundle-game.js",
+    "start": "npx expo start",
+    "prebuild": "npm run bundle && npx expo prebuild",
+    "build:ios": "npm run bundle && npx eas build --platform ios --profile production",
+    "submit:ios": "npx eas submit --platform ios --profile production",
+    "build:ios:preview": "npm run bundle && npx eas build --platform ios --profile preview"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7"
+  },
+  "dependencies": {
+    "expo": "^57.0.7",
+    "react": "^19.2.7",
+    "react-native": "^0.86.0",
+    "react-native-webview": "^14.0.1"
+  }
+}
