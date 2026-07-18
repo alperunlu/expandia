@@ -6,14 +6,13 @@ const dst = path.join(__dirname, '..', 'assets', 'gameHtml.js');
 
 let html = fs.readFileSync(src, 'utf-8');
 
-// Copy apple-touch-icon to assets
-const iconSrc = path.join(__dirname, '..', 'www', 'apple-touch-icon.png');
-const iconDst = path.join(__dirname, '..', 'assets', 'apple-touch-icon.png');
-if (fs.existsSync(iconSrc)) fs.copyFileSync(iconSrc, iconDst);
+// Base64 encode the HTML for safe WebView loading
+const base64 = Buffer.from(html, 'utf-8').toString('base64');
 
-// Escape and wrap as JS module
-const escaped = JSON.stringify(html);
-const output = `// Auto-generated from game.html\nexport const gameHtml = ${escaped};\n`;
+const output = `// Auto-generated from game.html
+export const gameHtmlBase64 = ${JSON.stringify(base64)};
+export const gameHtmlLength = ${html.length};
+`;
 fs.writeFileSync(dst, output);
 
-console.log('Game bundled into assets/gameHtml.js (' + (Buffer.byteLength(output) / 1024).toFixed(1) + ' KB)');
+console.log('Game bundled (' + (Buffer.byteLength(output) / 1024).toFixed(1) + ' KB, base64)');

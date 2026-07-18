@@ -1,14 +1,16 @@
 import React from 'react';
-import { StatusBar, View, Platform } from 'react-native';
+import { StatusBar, View } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { gameHtml } from './assets/gameHtml';
+import { gameHtmlBase64 } from './assets/gameHtml';
 
 export default function App() {
+  const htmlUri = 'data:text/html;base64,' + gameHtmlBase64;
+
   return (
     <View style={{ flex: 1, backgroundColor: '#05070F' }}>
       <StatusBar hidden />
       <WebView
-        source={{ html: gameHtml, baseUrl: '' }}
+        source={{ uri: htmlUri }}
         style={{ flex: 1, backgroundColor: '#05070F' }}
         javaScriptEnabled
         domStorageEnabled
@@ -20,7 +22,6 @@ export default function App() {
         setBuiltInZoomControls={false}
         setDisplayZoomControls={false}
         showsVerticalScrollIndicator={false}
-        originWhitelist={['*']}
       />
     </View>
   );
