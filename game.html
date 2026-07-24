@@ -4,12 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#05070F">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Expandia">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="format-detection" content="telephone=no">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>EXPANDIA — Empire Clash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -140,6 +134,19 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .streak.on b{animation:blink .5s steps(2) infinite}
 @keyframes blink{50%{opacity:.45}}
 
+/* ---------- turn timer ---------- */
+.turnring{
+  position:relative;height:4px;border-radius:2px;overflow:hidden;
+  background:#101740;border:1px solid var(--line);
+}
+.turnring i{
+  display:block;height:100%;width:100%;transform-origin:left;
+  background:linear-gradient(90deg,var(--cyan),var(--yellow));
+  transition:transform linear;
+}
+.turnring.warn i{background:linear-gradient(90deg,var(--yellow),var(--magenta))}
+.turnring.hide{opacity:0}
+
 /* ---------- resource deck ---------- */
 .deck{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .rbtn{
@@ -148,12 +155,10 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px}
   display:flex;flex-direction:column;align-items:center;gap:2px;
   font-family:'Chakra Petch',sans-serif;transition:transform .1s,border-color .2s,background .2s;
 }
-.rbtn .ic{font-size:16px;line-height:1}
+.rbtn .ic{font-size:19px;line-height:1;padding:2px 0}
 .rbtn .nm{font-size:9px;letter-spacing:.14em;color:var(--dim)}
-.rbtn .lv{font-family:'Share Tech Mono',monospace;font-size:15px;font-weight:700;line-height:1}
 .rbtn[data-r="E"]{--k:var(--e)} .rbtn[data-r="M"]{--k:var(--m)}
 .rbtn[data-r="C"]{--k:var(--c)} .rbtn[data-r="S"]{--k:var(--s)}
-.rbtn .lv{color:var(--k)}
 .rbtn.sel{border-color:var(--k);background:linear-gradient(180deg,color-mix(in srgb,var(--k) 16%,var(--panel)),var(--panel));box-shadow:0 0 16px -4px var(--k)}
 .rbtn.sel .nm{color:var(--k)}
 .rbtn:active{transform:translateY(1px)}
@@ -183,7 +188,6 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px}
   box-shadow:0 0 18px -3px var(--yellow);animation:rdy 1.2s ease-in-out infinite;
 }
 @keyframes rdy{50%{box-shadow:0 0 26px 0 var(--yellow)}}
-.odbtn.live{background:var(--lime);border-color:var(--lime);color:#04170A;cursor:default;animation:none}
 .odbtn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 
 /* ---------- log ---------- */
@@ -295,6 +299,8 @@ body.shake #app{animation:shk .3s}
 
   <div class="deck" id="deck"></div>
 
+  <div class="turnring hide" id="turnring"><i id="turnFill"></i></div>
+
   <div class="od">
     <span class="lab">X</span>
     <span class="pips" id="odPips"></span>
@@ -339,13 +345,13 @@ body.shake #app{animation:shk .3s}
     </div>
     <div class="rules">
       • Pick a resource <code>E M C S</code>, then tap any cell next to your territory.<br>
-      • Empty cells are taken instantly. Enemy cells trigger a <b>battle</b>.<br>
-      • Battle power = <code>resource level</code> + chain advantage (<code>+2</code>). Losing side of the chain takes <code>−1</code>.<br>
-      • <code>💰 E</code> stays out of the chain — it only makes <code>X</code> charge faster.<br>
-      • Every move levels that resource up by <b>1</b>. No cooldowns — use anything, any turn.<br>
-      • Tapping your own cell <b>fortifies</b> it to your current level.<br>
+      • Empty cells are taken instantly at <b>level 1</b>. Enemy cells trigger a <b>battle</b>.<br>
+      • Attack power = level of your <b>strongest cell touching the target</b> + chain advantage (<code>+2</code>, or <code>−1</code> if the chain is against you).<br>
+      • Levels live <b>on the map</b>: tap your own cell to <b>fortify</b> it (+1 level, converts it to the selected type).<br>
+      • Captured cells always start at level 1 — power grows where you invest, not everywhere at once.<br>
+      • Taking or attacking a cell charges <code>X</code> by 1 — fortifying doesn't.<br>
       • Consecutive wins build a <b>streak</b>: <code>+1</code> power at 3, <code>+2</code> at 5. A loss resets it.<br>
-      • 5 <code>X</code> points = <b>OVERDRIVE</b>: your next attack is a guaranteed win.<br>
+      • Full <code>X</code> bar (10 on Quick, 15 on Classic, 20 on Epic) = <b>OVERDRIVE</b>: instantly seize every cell directly bordering your territory, empty or enemy.<br>
       • Fall far behind and <b>RESIST</b> kicks in: <code>+1</code> power in every battle.<br>
       • <b>To win:</b> control 70% of the grid.
     </div>
@@ -379,13 +385,18 @@ const META = {
   C:{ic:'🎨',nm:'CULTURE', beats:'S'},
   S:{ic:'🔬',nm:'SCIENCE', beats:'E'}
 };
-const MAXLV = 9, MAXX = 5, WIN_SHARE = .75;
+const MAXLV = 9, WIN_SHARE = .70;
+const MAXX_BY_SIZE = {5:10, 8:15, 10:20}; // quick, classic, epic
+function maxx(){ return MAXX_BY_SIZE[G.n] || 10; }
+const TURN_MS_BY_DIFF = [4000, 3000, 2000]; // easy, normal, hard
+function turnMs(){ return TURN_MS_BY_DIFF[G && G.diff!=null ? G.diff : 1]; }
 const beats = (a,b)=>META[a].beats===b;
 
 /* ============ state ============ */
 let G = null;
 let soundOn = true, musicOn = true;
 let cfg = {size:5, diff:1};
+let turnRAF = null, turnStart = 0, turnTicking = false;
 
 const $ = s=>document.querySelector(s);
 const gridEl = $('#grid'), deckEl = $('#deck'), logEl = $('#log');
@@ -492,6 +503,12 @@ const sfx = {
     osc('square',220,t,.55,.08,null,1760);
     noise(t,.5,.05,2000);
     osc('sine',1318,t+.5,.3,.16,null,1760);
+  },
+  timeout(){
+    if(!soundOn) return; const a=resume(); if(!a) return; const t=a.currentTime;
+    osc('square',700,t,.05,.09,null,420);
+    osc('square',420,t+.07,.09,.08,null,240);
+    noise(t+.06,.08,.05,1500);
   },
   end(w){
     if(!soundOn) return; const a=resume(); if(!a) return; const t=a.currentTime;
@@ -605,34 +622,67 @@ function musicStart(){
   MUS.timer=setInterval(musicTick,25);
 }
 
+/* ============ turn timer ============ */
+const ringEl = ()=>$('#turnring'), fillEl = ()=>$('#turnFill');
+function turnStop(){
+  turnTicking=false;
+  if(turnRAF) cancelAnimationFrame(turnRAF);
+  ringEl().classList.add('hide');
+  ringEl().classList.remove('warn');
+}
+function turnStart_(){
+  if(G.over||G.busy) return;
+  turnTicking=true;
+  turnStart=performance.now();
+  ringEl().classList.remove('hide');
+  ringEl().classList.remove('warn');
+  const tick=()=>{
+    if(!turnTicking) return;
+    const el=performance.now()-turnStart, left=Math.max(0,1-el/turnMs());
+    fillEl().style.transform='scaleX('+left+')';
+    if(left<.28) ringEl().classList.add('warn');
+    if(left<=0){ turnTicking=false; onTurnTimeout(); return; }
+    turnRAF=requestAnimationFrame(tick);
+  };
+  turnRAF=requestAnimationFrame(tick);
+}
+function turnPoke(){ if(!G.over&&!G.busy) turnStart_(); }   // resets the clock after any player action
+function onTurnTimeout(){
+  if(G.over||G.busy) return;
+  turnStop();
+  sfx.timeout();
+  say('<i>Too slow — turn passed to the AI.</i>');
+  G.streak.p=0;
+  G.busy=true; render();
+  setTimeout(aiTurn,220);
+}
+
 /* ============ setup ============ */
 function newGame(){
   const n = cfg.size;
   G = {
     n, diff:cfg.diff, turn:1, over:false, busy:false, sel:'E',
     cells: Array.from({length:n*n},()=>({o:null,t:null,s:0,core:false})),
-    res:{p:{E:1,M:1,C:1,S:1}, a:{E:1,M:1,C:1,S:1}},
-    cd: {p:{E:0,M:0,C:0,S:0}, a:{E:0,M:0,C:0,S:0}},
     x:  {p:0,a:0},
-    od: {p:false,a:false},
     streak:{p:0,a:0}, best:0, wins:0
   };
   const pi = idx(n-1,0), ai = idx(0,n-1);
-  Object.assign(G.cells[pi],{o:'p',t:'E',s:2,core:true});
-  Object.assign(G.cells[ai],{o:'a',t:'E',s:2,core:true});
+  Object.assign(G.cells[pi],{o:'p',t:'M',s:2,core:true});
+  Object.assign(G.cells[ai],{o:'a',t:'M',s:2,core:true});
   buildGrid(); buildDeck(); render();
   say('Pick a resource, then tap a glowing cell.');
+  turnStop(); turnStart_();
 }
 const idx = (r,c)=>r*G.n+c;
 const rc = i=>[Math.floor(i/G.n), i%G.n];
 
+// orthogonal-only (no diagonals) — a cell only "touches" up/down/left/right
 function neighbors(i){
   const [r,c]=rc(i), out=[];
-  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
-    if(!dr&&!dc) continue;
+  [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc])=>{
     const nr=r+dr, nc=c+dc;
     if(nr>=0&&nr<G.n&&nc>=0&&nc<G.n) out.push(idx(nr,nc));
-  }
+  });
   return out;
 }
 const owned = w => G.cells.reduce((a,c,i)=>(c.o===w&&a.push(i),a),[]);
@@ -663,13 +713,12 @@ function buildDeck(){
     b.className='rbtn'; b.dataset.r=r;
     b.innerHTML=`<span class="beats">▸${META[r].beats}</span>
       <span class="ic">${META[r].ic}</span>
-      <span class="lv" data-lv="${r}">1</span>
       <span class="nm">${META[r].nm}</span>
 `;
     b.addEventListener('click',()=>pick(r));
     deckEl.appendChild(b);
   });
-  $('#odPips').innerHTML = Array.from({length:MAXX},()=>'<u></u>').join('');
+  $('#odPips').innerHTML = Array.from({length:maxx()},()=>'<u></u>').join('');
 }
 
 function render(){
@@ -692,16 +741,13 @@ function render(){
   $('#labT').textContent = 'TURN '+G.turn + (resist('p')?' · RESIST':'');
   // resource deck
   R.forEach(r=>{
-    const b = deckEl.querySelector(`[data-r="${r}"]`);
-    b.querySelector('.lv').textContent = G.res.p[r];
-    b.classList.toggle('sel', G.sel===r);
+    deckEl.querySelector(`[data-r="${r}"]`).classList.toggle('sel', G.sel===r);
   });
   // overdrive
   [...$('#odPips').children].forEach((u,k)=>u.classList.toggle('on',k<G.x.p));
   const ob=$('#odBtn');
-  ob.classList.toggle('ready', G.x.p>=MAXX && !G.od.p);
-  ob.classList.toggle('live', G.od.p);
-  ob.textContent = G.od.p ? 'ARMED' : 'OVERDRIVE';
+  ob.classList.toggle('ready', G.x.p>=maxx());
+  ob.textContent = 'OVERDRIVE';
   // streak
   const st=G.streak.p;
   $('#streakFill').style.width = Math.min(100, st/5*100)+'%';
@@ -715,10 +761,14 @@ const resist = w => {
   const me=owned(w).length, foe=owned(w==='p'?'a':'p').length;
   return me>0 && me < foe*.6;
 };
-function power(w,r,defT){
-  let p = G.res[w][r];
-  // E fights on raw level only — no chain bonus, no streak/resist
-  if(r==='E') return p;
+// strongest own cell adjacent to target = the attacking force
+function atkLevel(w,i){
+  let lv=1;
+  neighbors(i).forEach(j=>{ const c=G.cells[j]; if(c.o===w && c.s>lv) lv=c.s; });
+  return lv;
+}
+function power(w,r,defT,lv){
+  let p = lv;
   if(beats(r,defT)) p+=2;
   else if(beats(defT,r)) p-=1;
   if(w==='a' && G.diff===0) return p;
@@ -728,11 +778,11 @@ function power(w,r,defT){
   return p;
 }
 const defPower = c => c.s + (c.core?2:0);
-const chance = (atk,def)=>Math.max(.15, Math.min(.92, .5 + .12*(atk-def)));
+const chance = (atk,def,bonus=0)=>Math.max(.15, Math.min(.92, .5 + .12*(atk-def) + bonus));
 
 /* ============ moves ============ */
 function pick(r){
-  if(G.over||G.busy||G.cd.p[r]>0) return;
+  if(G.over||G.busy) return;
   G.sel=r; sfx.tap(); render();
 }
 function onCell(i){
@@ -751,23 +801,24 @@ function doMove(w,i,kind){
   let won=true, txt='', col='var(--cyan)', fx='hit';
 
   if(kind==='fort'){
-    c.s = Math.max(c.s, G.res[w][use]); c.t = use;
-    txt='FORTIFIED'; col='var(--lime)';
+    c.s = Math.min(MAXLV, c.s+1); c.t = use;
+    txt='FORTIFIED L'+c.s; col='var(--lime)';
     if(w==='p') sfx.fort();
   } else if(kind==='take'){
-    Object.assign(c,{o:w,t:use,s:G.res[w][use]});
+    Object.assign(c,{o:w,t:use,s:1});
     txt='CAPTURED'; col= w==='p'?'var(--cyan)':'var(--magenta)';
     if(w==='p') sfx.take();
   } else {
-    const atk = G.od[w] ? 99 : power(w,use,c.t);
+    const lv = atkLevel(w,i);
+    const atk = power(w,use,c.t,lv);
     const def = defPower(c);
-    won = G.od[w] || Math.random() < chance(atk,def);
-    if(G.od[w]){ G.od[w]=false; G.x[w]=0; }
+    const bonus = (w==='p' && G.diff===0) ? .10 : 0;
+    won = Math.random() < chance(atk,def,bonus);
     if(won){
       const wasCore=c.core;
-      Object.assign(c,{o:w,t:use,s:G.res[w][use]});
+      Object.assign(c,{o:w,t:use,s:1});
       if(wasCore) c.core=true;
-      txt = `${atk>90?'OVERDRIVE':atk+'v'+def} ✔`;
+      txt = `${atk}v${def} ✔`;
       col = w==='p'?'var(--yellow)':'var(--magenta)';
       if(w==='p'){ G.wins++; sfx.win(); shake(); }
     } else {
@@ -786,16 +837,12 @@ function doMove(w,i,kind){
     popup(i, G.streak.p>=5?'STREAK +2 PWR':'STREAK +1 PWR','var(--lime)');
   }
 
-  // level up the resource
-  G.res[w][use] = Math.min(MAXLV, G.res[w][use]+1);
-  // E acts as an X multiplier
-  const xGain = use==='E' ? Math.ceil(1.5 + G.res[w].E*.2) : 1;
-  G.x[w] = Math.min(MAXX, G.x[w]+xGain);
+  // X charge — every move charges the same, except fortifying
+  if(kind!=='fort') G.x[w] = Math.min(maxx(), G.x[w]+1);
 
   popup(i,txt,col);
   if(w==='p'){
-    if(use==='E') say('Economy <b>boosted</b> — X charges faster now.');
-    else say(kind==='fort' ? 'Cell fortified to level <u>'+G.res.p[use]+'</u>.'
+    say(kind==='fort' ? 'Cell fortified to level <u>'+c.s+'</u>.'
       : won ? 'Cell taken with <b>'+META[use].nm+'</b>.'
             : '<i>Attack repelled.</i> Streak reset.');
   } else {
@@ -804,9 +851,37 @@ function doMove(w,i,kind){
   render();
   flash(i,fx);
 
-  if(checkEnd()) { G.busy=false; return; }
-  if(w==='p') setTimeout(aiTurn, 260);
-  else { G.turn++; G.busy=false; render(); }
+  if(checkEnd()) { G.busy=false; turnStop(); return; }
+  if(w==='p') { turnStop(); setTimeout(aiTurn, 260); }
+  else { G.turn++; G.busy=false; render(); turnPoke(); }
+}
+
+function overdriveBlast(w){
+  G.busy=true;
+  const use = w==='p' ? G.sel : G.aiPick;
+  const targets = frontier(w);
+  let taken=0;
+  targets.forEach(i=>{
+    const c=G.cells[i];
+    const wasEnemy = !!c.o && c.o!==w;
+    const wasCore = c.core;
+    Object.assign(c,{o:w,t:use,s:1});
+    if(wasCore) c.core=true;
+    if(wasEnemy) taken++;
+    flash(i,'hit');
+  });
+  if(w==='p') G.wins += taken;
+  G.x[w]=0;
+  if(w==='p') sfx.od();
+  shake();
+  say(w==='p'
+    ? '<u>OVERDRIVE</u> — seized <b>'+targets.length+'</b> cell'+(targets.length===1?'':'s')+' at once!'
+    : 'AI unleashed <b>OVERDRIVE</b> — '+targets.length+' cells lost!');
+  render();
+
+  if(checkEnd()) { G.busy=false; turnStop(); return; }
+  if(w==='p') { turnStop(); setTimeout(aiTurn, 260); }
+  else { G.turn++; G.busy=false; render(); turnPoke(); }
 }
 
 function flash(i,cls){
@@ -828,36 +903,53 @@ function shake(){ document.body.classList.add('shake'); setTimeout(()=>document.
 function aiTurn(){
   if(G.over) return;
   const targets = frontier('a');
-  if(!targets.length){ G.turn++; G.busy=false; render(); return; }
+  if(!targets.length){ G.turn++; G.busy=false; render(); turnPoke(); return; }
 
   const d=G.diff;
   let best=null;
+
+  // option A: expand / attack a frontier cell
   targets.forEach(i=>{
     const c=G.cells[i];
     const openN = neighbors(i).filter(j=>!G.cells[j].o).length;
+    const lv = atkLevel('a',i);
     R.forEach(r=>{
       let sc = Math.random()*(d===0?11:d===1?5:.8);
       if(!c.o){
         // empty land = growth; cells with room to breathe are worth more
-        sc += 4 + openN*.5 + G.res.a[r]*.15;
+        sc += 4 + openN*.5;
       } else {
-        const atk=power('a',r,c.t), def=defPower(c);
+        const atk=power('a',r,c.t,lv), def=defPower(c);
         const p=chance(atk,def);
         sc += p*8 - 3.2;
         if(c.core) sc += d===2?8:3;
         if(d===2 && p<.5) sc -= 5;          // hard AI doesn't gamble
         if(d>0 && beats(r,c.t)) sc += 1.5;  // exploit the chain
       }
-      if(!best || sc>best.sc) best={i,r,sc,c};
+      if(!best || sc>best.sc) best={kind:'cell', i, r, sc, c};
     });
   });
 
+  // option B: fortify a threatened border cell (smarter AIs value defense)
+  if(d>0){
+    owned('a').forEach(i=>{
+      const c=G.cells[i];
+      const foeAdj = neighbors(i).filter(j=>G.cells[j].o==='p').length;
+      if(!foeAdj || c.s>=MAXLV) return;
+      let sc = Math.random()*(d===1?5:1.2) + foeAdj*1.1 - c.s*.8 + (c.core?3.5:0);
+      if(!best || sc>best.sc) best={kind:'fort', i, r:c.t, sc, c};
+    });
+  }
+
   // hard AI saves overdrive for a real push
-  if(G.x.a>=MAXX && best.c.o==='p' && (d===2 ? best.c.core || owned('a').length<owned('p').length : d===1)){
-    G.od.a=true;
+  if(G.x.a>=maxx() && best.kind==='cell' && best.c.o==='p' &&
+     (d===2 ? best.c.core || owned('a').length<owned('p').length : d===1)){
+    G.aiPick = best.r;
+    overdriveBlast('a');
+    return;
   }
   G.aiPick = best.r;
-  doMove('a', best.i, best.c.o==='p' ? 'battle' : 'take');
+  doMove('a', best.i, best.kind==='fort' ? 'fort' : (best.c.o==='p' ? 'battle' : 'take'));
 }
 
 /* ============ end of match ============ */
@@ -868,6 +960,7 @@ function checkEnd(){
   else if(a/tot>=WIN_SHARE){ win=false; why='The AI seized 70% of the grid.'; }
   if(win===null) return false;
   G.over=true;
+  turnStop();
   $('#endTitle').textContent = win?'VICTORY':'DEFEAT';
   $('#endMsg').textContent = why + (win?' Expandia is yours.':' Work the chain better next time.');
   $('#stTurn').textContent=G.turn; $('#stBest').textContent=G.best; $('#stWin').textContent=G.wins;
@@ -878,10 +971,8 @@ function checkEnd(){
 
 /* ============ UI events ============ */
 $('#odBtn').addEventListener('click',()=>{
-  if(G.over||G.busy||G.x.p<MAXX||G.od.p) return;
-  G.od.p=true; sfx.od(); shake();
-  say('<u>OVERDRIVE ARMED</u> — your next attack is a guaranteed win.');
-  render();
+  if(G.over||G.busy||G.x.p<maxx()) return;
+  overdriveBlast('p');
 });
 document.addEventListener('keydown',e=>{
   const k=e.key.toUpperCase();
@@ -901,9 +992,9 @@ $('#music').addEventListener('click',e=>{
   if(musBus) musBus.gain.setTargetAtTime(musicOn?.5:0, AC.currentTime, .05);
   if(musicOn && !MUS.running) musicStart();
 });
-$('#help').addEventListener('click',()=>$('#helpScrim').hidden=false);
-$('#helpClose').addEventListener('click',()=>$('#helpScrim').hidden=true);
-$('#menu').addEventListener('click',()=>$('#setup').hidden=false);
+$('#help').addEventListener('click',()=>{ turnStop(); $('#helpScrim').hidden=false; });
+$('#helpClose').addEventListener('click',()=>{ $('#helpScrim').hidden=true; turnPoke(); });
+$('#menu').addEventListener('click',()=>{ turnStop(); $('#setup').hidden=false; });
 $('#againBtn').addEventListener('click',()=>{ $('#endScrim').hidden=true; $('#setup').hidden=false; });
 document.querySelectorAll('.seg').forEach(seg=>{
   seg.addEventListener('click',e=>{
@@ -919,23 +1010,9 @@ $('#startBtn').addEventListener('click',()=>{
   resume(); if(musicOn) musicStart();
 });
 
-// ─── Capacitor / iOS lifecycle ───
-document.addEventListener('pause', () => {
-  if (AC && AC.state === 'running') AC.suspend();
-});
-document.addEventListener('resume', () => {
-  if (AC && AC.state === 'suspended') AC.resume();
-  if (musicOn && !MUS.running) musicStart();
-});
-// Hide splash screen (Capacitor injects capacitor object)
-try {
-  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen) {
-    window.Capacitor.Plugins.SplashScreen.hide();
-  }
-} catch(e) { /* ignore */ }
-
 newGame();
 $('#setup').hidden=false;
+window.__debug = {getG:()=>G, pick, onCell, frontier, neighbors, owned, atkLevel, power, defPower, chance, maxx, overdriveBlast, R, cfg, newGame, MAXLV};
 })();
 </script>
 </body>
