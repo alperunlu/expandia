@@ -349,7 +349,7 @@ body.shake #app{animation:shk .3s}
       • Attack power = level of your <b>strongest cell touching the target</b> + chain advantage (<code>+2</code>, or <code>−1</code> if the chain is against you).<br>
       • Levels live <b>on the map</b>: tap your own cell to <b>fortify</b> it (+1 level, converts it to the selected type).<br>
       • Captured cells always start at level 1 — power grows where you invest, not everywhere at once.<br>
-      • Taking or attacking a cell charges <code>X</code> by 1 — fortifying doesn't.<br>
+      • Successfully taking a cell charges <code>X</code> by 1 — losing a battle or fortifying doesn't.<br>
       • Consecutive wins build a <b>streak</b>: <code>+1</code> power at 3, <code>+2</code> at 5. A loss resets it.<br>
       • Full <code>X</code> bar (10 on Quick, 15 on Classic, 20 on Epic) = <b>OVERDRIVE</b>: instantly seize every cell directly bordering your territory, empty or enemy.<br>
       • Fall far behind and <b>RESIST</b> kicks in: <code>+1</code> power in every battle.<br>
@@ -837,8 +837,8 @@ function doMove(w,i,kind){
     popup(i, G.streak.p>=5?'STREAK +2 PWR':'STREAK +1 PWR','var(--lime)');
   }
 
-  // X charge — every move charges the same, except fortifying
-  if(kind!=='fort') G.x[w] = Math.min(maxx(), G.x[w]+1);
+  // X charge — only successful captures build overdrive
+  if(kind!=='fort' && won) G.x[w] = Math.min(maxx(), G.x[w]+1);
 
   popup(i,txt,col);
   if(w==='p'){
@@ -1012,7 +1012,6 @@ $('#startBtn').addEventListener('click',()=>{
 
 newGame();
 $('#setup').hidden=false;
-window.__debug = {getG:()=>G, pick, onCell, frontier, neighbors, owned, atkLevel, power, defPower, chance, maxx, overdriveBlast, R, cfg, newGame, MAXLV};
 })();
 </script>
 </body>
