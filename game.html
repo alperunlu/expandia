@@ -353,7 +353,7 @@ body.shake #app{animation:shk .3s}
       • Consecutive wins build a <b>streak</b>: <code>+1</code> power at 3, <code>+2</code> at 5. A loss resets it.<br>
       • Full <code>X</code> bar (10 on Quick, 15 on Classic, 20 on Epic) = <b>OVERDRIVE</b>: instantly seize every cell directly bordering your territory, empty or enemy.<br>
       • Fall far behind and <b>RESIST</b> kicks in: <code>+1</code> power in every battle.<br>
-      • <b>To win:</b> control 70% of the grid.
+      • <b>To win:</b> control the entire grid.
     </div>
     <button class="play" id="helpClose" style="margin-top:16px">GOT IT</button>
   </div>
@@ -385,7 +385,7 @@ const META = {
   C:{ic:'🎨',nm:'CULTURE', beats:'S'},
   S:{ic:'🔬',nm:'SCIENCE', beats:'E'}
 };
-const MAXLV = 9, WIN_SHARE = .70;
+const MAXLV = 9, WIN_SHARE = 1;
 const MAXX_BY_SIZE = {5:10, 8:15, 10:20}; // quick, classic, epic
 function maxx(){ return MAXX_BY_SIZE[G.n] || 10; }
 const TURN_MS_BY_DIFF = [4000, 3000, 2000]; // easy, normal, hard
@@ -956,8 +956,8 @@ function aiTurn(){
 function checkEnd(){
   const p=owned('p').length, a=owned('a').length, tot=G.n*G.n;
   let win=null, why='';
-  if(p/tot>=WIN_SHARE){ win=true; why='You seized 70% of the grid!'; }
-  else if(a/tot>=WIN_SHARE){ win=false; why='The AI seized 70% of the grid.'; }
+  if(p/tot>=WIN_SHARE){ win=true; why='You seized the entire grid!'; }
+  else if(a/tot>=WIN_SHARE){ win=false; why='The AI seized the entire grid.'; }
   if(win===null) return false;
   G.over=true;
   turnStop();
