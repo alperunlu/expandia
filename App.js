@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar, View, Text, ScrollView } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { gameHtmlBase64 } from './assets/gameHtml';
+import { gameHtml } from './assets/gameHtml';
 
 let crashListeners = [];
 let lastError = null;
@@ -72,13 +72,13 @@ function Game() {
     return <CrashScreen message={crash.message} stack={crash.stack} />;
   }
 
-  const htmlUri = 'data:text/html;base64,' + gameHtmlBase64;
-
   return (
     <View style={{ flex: 1, backgroundColor: '#05070F' }}>
       <StatusBar hidden />
       <WebView
-        source={{ uri: htmlUri }}
+        // Must be `html`, not a data: URI — see scripts/bundle-game.js
+        source={{ html: gameHtml }}
+        originWhitelist={['*']}
         style={{ flex: 1, backgroundColor: '#05070F' }}
         javaScriptEnabled
         domStorageEnabled

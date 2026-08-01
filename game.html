@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#05070F">
 <title>EXPANDIA</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 :root{
   --void:#05070F;
@@ -25,6 +22,12 @@
   --c:#FF2D9B;
   --s:#2BE7FF;
   --safe-b:env(safe-area-inset-bottom,0px);
+  /* Nudge content clear of the front camera. Floor matches the .icobtn size (34px)
+     so it still shifts down if the device reports no inset (status bar is hidden). */
+  --safe-t:max(env(safe-area-inset-top,0px),34px);
+  /* System fonts only — no webfonts, so the app makes zero network requests */
+  --ui:system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
@@ -34,7 +37,7 @@ body{
     radial-gradient(800px 500px at 100% 100%, #2A0B36 0%, transparent 55%),
     var(--void);
   color:var(--text);
-  font-family:'Chakra Petch',system-ui,-apple-system,sans-serif;
+  font-family:var(--ui);
   display:flex;justify-content:center;
   overscroll-behavior:none;
   touch-action:manipulation;
@@ -42,7 +45,7 @@ body{
 #app{
   width:100%;max-width:540px;min-height:100dvh;
   display:flex;flex-direction:column;gap:8px;
-  padding:10px 12px calc(10px + var(--safe-b));
+  padding:var(--safe-t) 12px calc(10px + var(--safe-b));
 }
 /* ---------- header ---------- */
 header{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -68,7 +71,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .tp{background:linear-gradient(90deg,#0F8FA8,var(--cyan))}
 .tn{background:#131A3E}
 .ta{background:linear-gradient(90deg,var(--magenta),#8A0F52)}
-.terrlab{display:flex;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:.1em}
+.terrlab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.1em}
 .terrlab b{color:var(--cyan);font-weight:400}
 .terrlab i{color:var(--magenta);font-style:normal}
 
@@ -84,7 +87,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .cell{
   position:relative;border-radius:5px;border:1px solid #141C42;
   background:#0A0E22;display:grid;place-items:center;
-  font-family:'Share Tech Mono',monospace;font-size:var(--gf,12px);color:#2B3768;
+  font-family:var(--mono);font-size:var(--gf,12px);color:#2B3768;
   cursor:default;overflow:hidden;transition:transform .12s, box-shadow .2s, background .2s;
 }
 .cell .glyph{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;line-height:1.05}
@@ -116,7 +119,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 /* floating combat text */
 .float{
   position:absolute;z-index:30;pointer-events:none;
-  font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;
+  font-family:var(--mono);font-size:12px;font-weight:700;
   text-shadow:0 0 10px currentColor;animation:floatup .9s ease-out forwards;
 }
 @keyframes floatup{0%{transform:translate(-50%,0);opacity:0}15%{opacity:1}100%{transform:translate(-50%,-38px);opacity:0}}
@@ -124,7 +127,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 /* ---------- streak ---------- */
 .streak{
   display:flex;align-items:center;gap:8px;height:26px;
-  font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.08em;
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;
 }
 .streak .pip{width:100%;height:5px;border-radius:3px;background:#101740;overflow:hidden;flex:1}
 .streak .pip i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--yellow));transition:width .3s}
@@ -152,7 +155,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px}
   position:relative;border:1px solid var(--line);background:var(--panel);
   border-radius:11px;padding:8px 4px 7px;cursor:pointer;color:var(--text);
   display:flex;flex-direction:column;align-items:center;gap:2px;
-  font-family:'Chakra Petch',sans-serif;transition:transform .1s,border-color .2s,background .2s;
+  font-family:var(--ui);transition:transform .1s,border-color .2s,background .2s;
 }
 .rbtn .ic{font-size:19px;line-height:1;padding:2px 0}
 .rbtn .nm{font-size:9px;letter-spacing:.14em;color:var(--dim)}
@@ -164,7 +167,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .rbtn:focus-visible{outline:2px solid var(--k);outline-offset:2px}
 
 .rbtn .beats{
-  position:absolute;top:3px;right:5px;font-size:8px;font-family:'Share Tech Mono',monospace;
+  position:absolute;top:3px;right:5px;font-size:8px;font-family:var(--mono);
   color:var(--dim);opacity:.8
 }
 
@@ -173,14 +176,14 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px}
   display:flex;align-items:center;gap:8px;border:1px solid var(--line);
   background:var(--panel);border-radius:11px;padding:7px 10px;
 }
-.od .lab{font-size:10px;letter-spacing:.18em;color:var(--dim);font-family:'Share Tech Mono',monospace}
+.od .lab{font-size:10px;letter-spacing:.18em;color:var(--dim);font-family:var(--mono)}
 .od .pips{display:flex;gap:4px;flex:1}
 .od .pips u{flex:1;height:6px;border-radius:3px;background:#101740;text-decoration:none;transition:background .25s,box-shadow .25s}
 .od .pips u.on{background:var(--yellow);box-shadow:0 0 8px var(--yellow)}
 .odbtn{
   border:1px solid var(--line);background:#0D1330;color:var(--dim);
   border-radius:8px;padding:6px 12px;font-size:11px;letter-spacing:.14em;
-  font-family:'Chakra Petch',sans-serif;font-weight:700;cursor:not-allowed;
+  font-family:var(--ui);font-weight:700;cursor:not-allowed;
 }
 .odbtn.ready{
   cursor:pointer;color:#1A1300;background:var(--yellow);border-color:var(--yellow);
@@ -193,7 +196,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 #log{
   height:34px;overflow:hidden;border-radius:9px;border:1px solid var(--line);
   background:#080C1E;padding:0 10px;display:flex;align-items:center;
-  font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim);
+  font-family:var(--mono);font-size:11px;color:var(--dim);
 }
 #log b{color:var(--cyan);font-weight:400}
 #log i{color:var(--magenta);font-style:normal}
@@ -217,31 +220,31 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 }
 .modal p{margin:0 0 14px;font-size:12px;color:var(--dim);line-height:1.5}
 .opt{margin-bottom:12px}
-.opt>span{display:block;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:.16em;margin-bottom:5px}
+.opt>span{display:block;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.16em;margin-bottom:5px}
 .seg{display:grid;grid-auto-flow:column;gap:5px}
 .seg button{
   border:1px solid var(--line);background:#0A1028;color:var(--dim);
-  border-radius:9px;padding:9px 4px;font-family:'Chakra Petch',sans-serif;
+  border-radius:9px;padding:9px 4px;font-family:var(--ui);
   font-size:11px;font-weight:600;cursor:pointer;letter-spacing:.05em;
 }
-.seg button small{display:block;font-family:'Share Tech Mono',monospace;font-size:8px;opacity:.6;margin-top:2px}
+.seg button small{display:block;font-family:var(--mono);font-size:8px;opacity:.6;margin-top:2px}
 .seg button.on{border-color:var(--cyan);color:var(--cyan);background:#0A2233;box-shadow:0 0 14px -5px var(--cyan)}
 .seg button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .play{
   width:100%;margin-top:4px;border:none;border-radius:11px;padding:13px;
-  font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:14px;letter-spacing:.22em;
+  font-family:var(--ui);font-weight:700;font-size:14px;letter-spacing:.22em;
   background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#04070F;cursor:pointer;
 }
 .play:active{transform:translateY(1px)}
 .play:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
 .rules{font-size:11px;line-height:1.7;color:var(--dim)}
 .rules code{
-  font-family:'Share Tech Mono',monospace;color:var(--yellow);
+  font-family:var(--mono);color:var(--yellow);
   background:#0B1026;padding:1px 5px;border-radius:4px;border:1px solid var(--line)
 }
 .chain{
   display:flex;justify-content:center;align-items:center;gap:5px;flex-wrap:wrap;
-  font-family:'Share Tech Mono',monospace;font-size:11px;margin:10px 0 14px;
+  font-family:var(--mono);font-size:11px;margin:10px 0 14px;
 }
 .chain em{font-style:normal;padding:3px 7px;border-radius:6px;border:1px solid currentColor}
 .chain .ce{color:var(--e)} .chain .cm{color:var(--m)}
@@ -251,7 +254,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px}
   display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0 14px;
 }
 .endstat div{background:#0A1028;border:1px solid var(--line);border-radius:9px;padding:8px;text-align:center}
-.endstat b{display:block;font-family:'Share Tech Mono',monospace;font-size:17px;color:var(--yellow)}
+.endstat b{display:block;font-family:var(--mono);font-size:17px;color:var(--yellow)}
 .endstat span{font-size:9px;color:var(--dim);letter-spacing:.1em}
 
 body.shake #app{animation:shk .3s}
@@ -753,7 +756,9 @@ function render(){
   $('#streakTxt').textContent = st>=5?'+2 PWR':st>=3?'+1 PWR':st+'/3';
   $('#streakRow').classList.toggle('on', st>=3);
 }
-function say(html){ logEl.innerHTML = html; }
+// Wrapped in a single span: #log is a flex container, and without this each text
+// node and <b>/<i> becomes its own flex item, which strips the spaces between them.
+function say(html){ logEl.innerHTML = '<span>'+html+'</span>'; }
 
 /* ============ power math ============ */
 const resist = w => {
