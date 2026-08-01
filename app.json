@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./resources/icon.png",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./resources/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#05070F"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.alu.expandia",
@@ -25,6 +20,16 @@
         "projectId": "cceb7ebd-0ede-4924-a6aa-3cbfdbe3ed4a"
       }
     },
-    "owner": "alperunlu"
+    "owner": "alperunlu",
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./resources/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#05070F"
+        }
+      ]
+    ]
   }
 }
